@@ -35,6 +35,21 @@ public static class Respuesta
 
     public static ActionResult Forbidden(string mensaje = "Acceso al recurso denegado", TipoRespuesta tipomensaje = TipoRespuesta.error)
         => new ObjectResult(new { mensaje, tipomensaje }) { StatusCode = StatusCodes.Status403Forbidden };
+
+    /// <summary>
+    /// El recurso no existe. Se usa en lugar de lanzar <see cref="KeyNotFoundException"/>
+    /// desde el controller, para que el flujo de control sea explicito; el middleware
+    /// global sigue reservando esa excepcion para el dominio.
+    /// </summary>
+    public static ActionResult NotFound(string mensaje = "El recurso solicitado no existe", TipoRespuesta tipomensaje = TipoRespuesta.error)
+        => new ObjectResult(new { mensaje, tipomensaje }) { StatusCode = StatusCodes.Status404NotFound };
+
+    /// <summary>
+    /// Conflicto con el estado actual de la base de datos: unicidad violada o
+    /// registros dependientes que impiden completar la operacion.
+    /// </summary>
+    public static ActionResult Conflict(string mensaje = "La operación entra en conflicto con los datos existentes", TipoRespuesta tipomensaje = TipoRespuesta.error)
+        => new ObjectResult(new { mensaje, tipomensaje }) { StatusCode = StatusCodes.Status409Conflict };
 }
 
 /// <summary>

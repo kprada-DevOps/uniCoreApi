@@ -10,6 +10,7 @@ using UniCore.Api.Extensions;
 using UniCore.Api.Helpers;
 using UniCore.Api.Middleware;
 using UniCore.Api.Modules.Auth.Managers;
+using UniCore.Api.Modules.Personas.Managers;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -138,6 +139,10 @@ builder.Services.AddSwaggerGen(options =>
 // Cada modulo vive en Modules/<Modulo>/ con Controllers, Dto, Request, Response y Managers.
 // Sus managers se registran aqui, por ambito de peticion.
 builder.Services.AddScoped<AuthManager>();
+builder.Services.AddScoped<PersonaManager>();
+builder.Services.AddScoped<EstudianteManager>();
+builder.Services.AddScoped<DocenteManager>();
+builder.Services.AddScoped<TipoDocumentoManager>();
 
 var app = builder.Build();
 
