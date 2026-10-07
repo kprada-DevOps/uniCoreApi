@@ -1,0 +1,7 @@
+@host = http://localhost:5078
+
+### Salud de la API y estado de la conexion MySQL
+GET {{host}}/health
+Accept: application/json
+
+###
