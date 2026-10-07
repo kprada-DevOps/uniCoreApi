@@ -1,4 +1,5 @@
 using System.Security.Claims;
+using UniCore.Api.Database;
 
 namespace UniCore.Api.Middleware;
 
@@ -12,7 +13,8 @@ public sealed class PeticionColegioMiddleware
     /// <summary>
     /// Nombre del claim que transporta la conexión del usuario autenticado.
     /// </summary>
-    public const string ConexionClaimType = "conexion";
+    // AuthController emite la conexión autenticada bajo el claim `colegio`.
+    public const string ConexionClaimType = "colegio";
 
     private readonly RequestDelegate _next;
     private readonly ILogger<PeticionColegioMiddleware> _logger;
@@ -23,7 +25,7 @@ public sealed class PeticionColegioMiddleware
         _logger = logger;
     }
 
-    public async Task InvokeAsync(HttpContext context)
+    public async Task InvokeAsync(HttpContext context, DatabaseProvider database)
     {
         if (context.User.Identity?.IsAuthenticated != true)
         {
@@ -40,10 +42,13 @@ public sealed class PeticionColegioMiddleware
 
         var conexionToken = context.User.FindFirst(ConexionClaimType)?.Value;
 
-        // Sin claim de conexión no hay nada que contrastar.
+        // Un token autenticado sin conexión no puede autorizar una ruta tenant.
         if (string.IsNullOrWhiteSpace(conexionToken))
         {
-            await _next(context);
+            context.Response.StatusCode = StatusCodes.Status401Unauthorized;
+            context.Response.ContentType = "application/json; charset=utf-8";
+            await context.Response.WriteAsync(
+                "{\"mensaje\":\"El token no contiene una conexión válida\",\"tipomensaje\":\"error\"}");
             return;
         }
 
@@ -56,7 +61,24 @@ public sealed class PeticionColegioMiddleware
             context.Response.StatusCode = StatusCodes.Status401Unauthorized;
             context.Response.ContentType = "application/json; charset=utf-8";
             await context.Response.WriteAsync(
-                """{"success":false,"tipo":"error","mensaje":"La conexion no pertenece a la peticion"}""");
+                "{\"mensaje\":\"La conexión del token no coincide con la de la petición\",\"tipomensaje\":\"error\"}");
+            return;
+        }
+
+        // El estado de usuario se consulta en la BD en cada petición protegida,
+        // evitando que un access token siga sirviendo tras una desactivación.
+        if (!long.TryParse(context.User.FindFirst("codusuario")?.Value, out var codUsuario))
+        {
+            context.Response.StatusCode = StatusCodes.Status401Unauthorized;
+            return;
+        }
+        var activo = await database.ExecuteScalar<long>(
+            "SELECT COUNT(*) FROM seg_usuarios WHERE cod=@cod AND activo=1;", new { cod = codUsuario }, conexionRuta);
+        if (activo == 0)
+        {
+            context.Response.StatusCode = StatusCodes.Status401Unauthorized;
+            context.Response.ContentType = "application/json; charset=utf-8";
+            await context.Response.WriteAsync("{\"mensaje\":\"La cuenta está inactiva\",\"tipomensaje\":\"error\"}");
             return;
         }
 

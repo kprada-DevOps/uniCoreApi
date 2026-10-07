@@ -46,10 +46,17 @@ ORDER BY r.codigo;";
 SELECT DISTINCT
     p.codigo AS codigo
 FROM seg_usuario_roles ur
+INNER JOIN seg_roles r ON r.cod = ur.cod_rol
 INNER JOIN seg_rol_permisos rp ON rp.cod_rol = ur.cod_rol
 INNER JOIN seg_permisos p ON p.cod = rp.cod_permiso
+INNER JOIN seg_modulos m ON m.cod = p.cod_modulo AND m.activo = 1
+LEFT JOIN seg_modulos_configuracion mc ON mc.cod_modulo = m.cod
 WHERE ur.cod_usuario = @cod_usuario
+  AND r.activo = 1
   AND p.activo = 1
+  AND (mc.cod IS NULL OR (mc.habilitado = 1
+    AND (mc.fecha_inicio IS NULL OR mc.fecha_inicio <= NOW())
+    AND (mc.fecha_fin IS NULL OR mc.fecha_fin >= NOW())))
 ORDER BY p.codigo;";
 
     private const string ActualizarUltimoAccesoSql = @"

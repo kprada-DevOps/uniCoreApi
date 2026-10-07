@@ -1,6 +1,7 @@
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.IdentityModel.Tokens;
@@ -11,6 +12,8 @@ using UniCore.Api.Helpers;
 using UniCore.Api.Middleware;
 using UniCore.Api.Modules.Auth.Managers;
 using UniCore.Api.Modules.Personas.Managers;
+using UniCore.Api.Modules.Seguridad.Managers;
+using UniCore.Api.Modules.Seguridad.Authorization;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -69,6 +72,10 @@ builder.Services
         };
     });
 
+builder.Services.AddHttpContextAccessor();
+builder.Services.AddSingleton<IAuthorizationPolicyProvider, PermisoPolicyProvider>();
+builder.Services.AddScoped<IAuthorizationHandler, PermisoAuthorizationHandler>();
+builder.Services.AddScoped<IAuthorizationHandler, RolAuthorizationHandler>();
 builder.Services.AddAuthorization();
 
 // ---------- CORS ----------
@@ -143,6 +150,12 @@ builder.Services.AddScoped<PersonaManager>();
 builder.Services.AddScoped<EstudianteManager>();
 builder.Services.AddScoped<DocenteManager>();
 builder.Services.AddScoped<TipoDocumentoManager>();
+builder.Services.AddScoped<UsuarioSeguridadManager>();
+builder.Services.AddScoped<RolesManager>();
+builder.Services.AddScoped<PermisosManager>();
+builder.Services.AddScoped<ModulosManager>();
+builder.Services.AddScoped<MenuManager>();
+builder.Services.AddScoped<AuditoriaManager>();
 
 var app = builder.Build();
 

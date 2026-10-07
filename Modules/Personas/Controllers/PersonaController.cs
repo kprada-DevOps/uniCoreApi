@@ -27,6 +27,7 @@ public sealed class PersonaController : ControllerBase
     /// <summary>
     /// Personas, por omision solo las activas.
     /// </summary>
+    [Authorize(Policy = "PERMISO:PERSONAS.CONSULTAR")]
     [HttpGet("ObtenerPersonas")]
     public async Task<ActionResult> ObtenerPersonas(
         string conexion,
@@ -37,6 +38,7 @@ public sealed class PersonaController : ControllerBase
         return Respuesta.Success(personas);
     }
 
+    [Authorize(Policy = "PERMISO:PERSONAS.CONSULTAR")]
     [HttpGet("ObtenerPersona/{cod:long:min(1)}")]
     public async Task<ActionResult> ObtenerPersona(string conexion, long cod)
     {
@@ -52,6 +54,7 @@ public sealed class PersonaController : ControllerBase
     /// Si el par tipo de documento y numero ya existe, la violacion del indice unico
     /// uq_per_persona_documento la traduce el middleware global a 409.
     /// </summary>
+    [Authorize(Policy = "PERMISO:PERSONAS.CREAR")]
     [HttpPost("CrearPersona")]
     public async Task<ActionResult> CrearPersona(string conexion, [FromBody] PersonaRequest request)
     {
@@ -65,6 +68,7 @@ public sealed class PersonaController : ControllerBase
     /// Reemplaza los datos de una persona. Poner activo en true reactiva una
     /// persona dada de baja.
     /// </summary>
+    [Authorize(Policy = "PERMISO:PERSONAS.EDITAR")]
     [HttpPut("ActualizarPersona/{cod:long:min(1)}")]
     public async Task<ActionResult> ActualizarPersona(string conexion, long cod, [FromBody] PersonaActualizarRequest request)
     {
@@ -80,6 +84,7 @@ public sealed class PersonaController : ControllerBase
     /// usuarios y registros de otros sectores la referencian y el esquema no declara
     /// ningun ON DELETE.
     /// </summary>
+    [Authorize(Policy = "PERMISO:PERSONAS.EDITAR")]
     [HttpDelete("{cod:long:min(1)}")]
     public async Task<ActionResult> EliminarPersona(string conexion, long cod)
     {

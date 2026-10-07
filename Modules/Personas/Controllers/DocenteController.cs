@@ -24,6 +24,7 @@ public sealed class DocenteController : ControllerBase
         _logger = logger;
     }
 
+    [Authorize(Policy = "PERMISO:PERSONAS.CONSULTAR")]
     [HttpGet("ObtenerDocentes")]
     public async Task<ActionResult> ObtenerDocentes(
         string conexion,
@@ -34,6 +35,7 @@ public sealed class DocenteController : ControllerBase
         return Respuesta.Success(docentes);
     }
 
+    [Authorize(Policy = "PERMISO:PERSONAS.CONSULTAR")]
     [HttpGet("ObtenerDocente/{cod:long:min(1)}")]
     public async Task<ActionResult> ObtenerDocente(string conexion, long cod)
     {
@@ -48,6 +50,7 @@ public sealed class DocenteController : ControllerBase
     /// Registra un docente y devuelve su cod. A diferencia del estudiante, la fecha
     /// de ingreso es opcional en esta tabla.
     /// </summary>
+    [Authorize(Policy = "PERMISO:PERSONAS.CREAR")]
     [HttpPost("CrearDocente")]
     public async Task<ActionResult> CrearDocente(string conexion, [FromBody] DocenteRequest request)
     {
@@ -57,6 +60,7 @@ public sealed class DocenteController : ControllerBase
         return Respuesta.Success(cod, "Docente creado correctamente");
     }
 
+    [Authorize(Policy = "PERMISO:PERSONAS.EDITAR")]
     [HttpPut("ActualizarDocente/{cod:long:min(1)}")]
     public async Task<ActionResult> ActualizarDocente(string conexion, long cod, [FromBody] DocenteActualizarRequest request)
     {
@@ -70,6 +74,7 @@ public sealed class DocenteController : ControllerBase
     /// <summary>
     /// Baja logica: pasa el estado a INACTIVO. No borra la fila.
     /// </summary>
+    [Authorize(Policy = "PERMISO:PERSONAS.EDITAR")]
     [HttpDelete("{cod:long:min(1)}")]
     public async Task<ActionResult> EliminarDocente(string conexion, long cod)
     {

@@ -29,6 +29,7 @@ public sealed class TipoDocumentoController : ControllerBase
     /// El nombre sigue la convencion de los demas listados del modulo (ObtenerPersonas,
     /// ObtenerEstudiantes), no el plural de la tabla per_tipos_documento.
     /// </summary>
+    [Authorize(Policy = "PERMISO:PERSONAS.CONSULTAR")]
     [HttpGet("ObtenerTipoDocumentos")]
     public async Task<ActionResult> ObtenerTipoDocumentos(string conexion)
     {
@@ -36,6 +37,7 @@ public sealed class TipoDocumentoController : ControllerBase
         return Respuesta.Success(tipos);
     }
 
+    [Authorize(Policy = "PERMISO:PERSONAS.CONSULTAR")]
     [HttpGet("ObtenerTipoDocumento/{cod:int:min(1)}")]
     public async Task<ActionResult> ObtenerTipoDocumento(string conexion, int cod)
     {

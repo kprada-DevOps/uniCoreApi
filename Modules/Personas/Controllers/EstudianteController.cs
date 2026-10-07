@@ -24,6 +24,7 @@ public sealed class EstudianteController : ControllerBase
         _logger = logger;
     }
 
+    [Authorize(Policy = "PERMISO:ESTUDIANTES.CONSULTAR")]
     [HttpGet("ObtenerEstudiantes")]
     public async Task<ActionResult> ObtenerEstudiantes(
         string conexion,
@@ -34,6 +35,7 @@ public sealed class EstudianteController : ControllerBase
         return Respuesta.Success(estudiantes);
     }
 
+    [Authorize(Policy = "PERMISO:ESTUDIANTES.CONSULTAR")]
     [HttpGet("ObtenerEstudiante/{cod:long:min(1)}")]
     public async Task<ActionResult> ObtenerEstudiante(string conexion, long cod)
     {
@@ -50,6 +52,7 @@ public sealed class EstudianteController : ControllerBase
     /// middleware global a 400. Si esa persona ya esta inscrita, el indice unico
     /// uq_per_estudiante_persona produce un 409.
     /// </summary>
+    [Authorize(Policy = "PERMISO:ESTUDIANTES.EDITAR")]
     [HttpPost("CrearEstudiante")]
     public async Task<ActionResult> CrearEstudiante(string conexion, [FromBody] EstudianteRequest request)
     {
@@ -59,6 +62,7 @@ public sealed class EstudianteController : ControllerBase
         return Respuesta.Success(cod, "Estudiante creado correctamente");
     }
 
+    [Authorize(Policy = "PERMISO:ESTUDIANTES.EDITAR")]
     [HttpPut("ActualizarEstudiante/{cod:long:min(1)}")]
     public async Task<ActionResult> ActualizarEstudiante(string conexion, long cod, [FromBody] EstudianteActualizarRequest request)
     {
@@ -73,6 +77,7 @@ public sealed class EstudianteController : ControllerBase
     /// Baja logica: pasa el estado a INACTIVO. No borra la fila ni toca el activo de
     /// la persona asociada.
     /// </summary>
+    [Authorize(Policy = "PERMISO:ESTUDIANTES.CREAR")]
     [HttpDelete("{cod:long:min(1)}")]
     public async Task<ActionResult> EliminarEstudiante(string conexion, long cod)
     {
