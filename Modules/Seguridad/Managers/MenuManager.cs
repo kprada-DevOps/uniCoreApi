@@ -27,7 +27,20 @@ JOIN seg_modulos mo ON mo.cod=p.cod_modulo AND mo.activo=1
 LEFT JOIN seg_modulos_configuracion mc ON mc.cod_modulo=mo.cod
 WHERE ur.cod_usuario=@usuario
 AND (mc.cod IS NULL OR (mc.habilitado=1 AND (mc.fecha_inicio IS NULL OR mc.fecha_inicio<=NOW()) AND (mc.fecha_fin IS NULL OR mc.fecha_fin>=NOW())));";
-        var modulosPermitidos = (await _db.GetMany<int>(modulosSql, new { usuario }, conexion)).ToHashSet();
+        var esSuperadmin = await _db.ExecuteScalar<bool>(@"
+SELECT EXISTS(
+    SELECT 1 FROM seg_usuario_roles ur
+    JOIN seg_roles r ON r.cod=ur.cod_rol AND r.activo=1 AND r.es_superadmin=1
+    WHERE ur.cod_usuario=@usuario
+);", new { usuario }, conexion);
+        var modulosPermitidos = (esSuperadmin
+            ? await _db.GetMany<int>(@"
+SELECT mo.cod
+FROM seg_modulos mo
+LEFT JOIN seg_modulos_configuracion mc ON mc.cod_modulo=mo.cod
+WHERE mo.activo=1
+AND (mc.cod IS NULL OR (mc.habilitado=1 AND (mc.fecha_inicio IS NULL OR mc.fecha_inicio<=NOW()) AND (mc.fecha_fin IS NULL OR mc.fecha_fin>=NOW())));", conexion: conexion)
+            : await _db.GetMany<int>(modulosSql, new { usuario }, conexion)).ToHashSet();
         if (modulosPermitidos.Count == 0) return [];
 
         const string menuSql = @"

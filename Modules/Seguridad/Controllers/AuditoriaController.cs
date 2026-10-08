@@ -5,7 +5,7 @@ using UniCore.Api.Modules.Seguridad.Managers;
 
 namespace UniCore.Api.Modules.Seguridad.Controllers;
 
-[ApiController, Route("{conexion}/[controller]"), Authorize(Policy="ROL:ADMIN")]
+[ApiController, Route("{conexion}/[controller]"), Authorize(Policy="PERMISO:SEGURIDAD.ADMINISTRAR")]
 public sealed class AuditoriaController(AuditoriaManager manager) : ControllerBase
 {
     [HttpGet("ObtenerAuditoria")]

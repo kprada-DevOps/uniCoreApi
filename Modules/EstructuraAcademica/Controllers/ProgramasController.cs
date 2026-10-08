@@ -6,5 +6,5 @@ using UniCore.Api.Modules.EstructuraAcademica.Requests;
 
 namespace UniCore.Api.Modules.EstructuraAcademica.Controllers;
 
-[ApiController, Route("{conexion}/Programas"), Authorize(Policy = "ROL:ADMIN")]
+[ApiController, Route("{conexion}/Programas"), Authorize]
 public sealed class ProgramasController(ProgramasManager manager) : CatalogoAcademicoController<ProgramaDto, ProgramaRequest>(manager) { }

@@ -16,13 +16,13 @@ public sealed class MenuController(MenuManager manager, AuditoriaManager audit) 
         if(!long.TryParse(User.FindFirst("codusuario")?.Value,out var usuario)) return Unauthorized();
         return Respuesta.Success(await manager.ParaUsuario(usuario,conexion));
     }
-    [Authorize(Policy="ROL:ADMIN")]
+    [Authorize(Policy="PERMISO:SEGURIDAD.ADMINISTRAR")]
     [HttpGet("ObtenerMenu")]
     public async Task<ActionResult> Listar(string conexion,[FromQuery] int? cod_modulo=null,[FromQuery] bool incluirInactivos=false)=>Respuesta.Success(await manager.Listar(conexion,cod_modulo,incluirInactivos));
-    [Authorize(Policy="ROL:ADMIN")]
+    [Authorize(Policy="PERMISO:SEGURIDAD.ADMINISTRAR")]
     [HttpGet("ObtenerMenu/{cod:int:min(1)}")]
     public async Task<ActionResult> Obtener(string conexion,int cod){var item=await manager.Obtener(cod,conexion);return item is null?Respuesta.NotFound("El elemento de menú no existe."):Respuesta.Success(item);}
-    [Authorize(Policy="ROL:ADMIN")]
+    [Authorize(Policy="PERMISO:SEGURIDAD.ADMINISTRAR")]
     [HttpPost("CrearMenu")]
     public async Task<ActionResult> Crear(string conexion,[FromBody] MenuRequest r)
     {
@@ -33,7 +33,7 @@ public sealed class MenuController(MenuManager manager, AuditoriaManager audit) 
         if(await manager.CodigoExiste(r.codigo,null,conexion)is not null)return Respuesta.Conflict("El código del menú ya existe.");
         var id=await manager.Crear(r,conexion);await audit.Registrar(conexion,"seg_menu",id.ToString(),"CREAR",nuevo:r);return Respuesta.Success(await manager.Obtener(id,conexion),"Elemento de menú creado");
     }
-    [Authorize(Policy="ROL:ADMIN")]
+    [Authorize(Policy="PERMISO:SEGURIDAD.ADMINISTRAR")]
     [HttpPut("ActualizarMenu/{cod:int:min(1)}")]
     public async Task<ActionResult> Actualizar(string conexion,int cod,[FromBody] MenuRequest r)
     {
@@ -45,7 +45,7 @@ public sealed class MenuController(MenuManager manager, AuditoriaManager audit) 
         var antes=await manager.Listar(conexion,r.cod_modulo,true);var anterior=antes.FirstOrDefault(x=>x.cod==cod);if(anterior is null)return Respuesta.NotFound("El elemento de menú no existe.");
         await manager.Actualizar(cod,r,conexion);await audit.Registrar(conexion,"seg_menu",cod.ToString(),"EDITAR",anterior,r);return Respuesta.Success(await manager.Obtener(cod,conexion),"Elemento de menú actualizado");
     }
-    [Authorize(Policy="ROL:ADMIN")]
+    [Authorize(Policy="PERMISO:SEGURIDAD.ADMINISTRAR")]
     [HttpPut("CambiarEstado/{cod:int:min(1)}")]
     public async Task<ActionResult> Estado(string conexion,int cod,[FromQuery] bool activo)
     {

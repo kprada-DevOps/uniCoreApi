@@ -38,22 +38,29 @@ sus propios controllers/managers. Las bajas son lógicas; no se borran relacione
 registros con claves foráneas. Las escrituras administrativas pasan por
 `AuditoriaManager` y los snapshots no incluyen hashes ni contraseñas.
 
-Los endpoints de configuración requieren `ROL:ADMIN`, resuelto contra las
-asignaciones vigentes en MySQL. Las rutas operativas usan políticas `PERMISO:<codigo>`
-que vuelven a consultar los permisos activos del usuario y módulo en cada petición;
-una revocación tiene efecto sin esperar a que expire el JWT. La API también consulta
-el estado actual del usuario por petición. El frontend usa permisos para navegar,
-mientras que la API conserva la decisión final.
+Las pantallas del frontend usan `PERMISO:<codigo>` para navegación. Los endpoints
+administrativos de Seguridad requieren `SEGURIDAD.ADMINISTRAR`; las operaciones de
+Estructura Académica requieren permisos distintos para consultar, crear y editar.
+La API vuelve a consultar permisos, estado del usuario y privilegio de superadmin en
+cada petición; los permisos y roles del JWT no son la fuente de autorización. El
+superadmin es una marca protegida de `seg_roles`, no asignable desde el mantenimiento
+ordinario de roles, y puede asignarse a usuarios solo desde una operación controlada.
 
-`ObtenerMenuUsuario` devuelve la jerarquía activa cuando el módulo está activo y
-tiene al menos un permiso vigente asignado al usuario. Si existe configuración,
-respeta `habilitado` y sus fechas. El esquema permite módulos sin fila de
-configuración y la semilla actual no crea esas filas; en ese caso el módulo se
-interpreta habilitado por defecto para mantener compatibilidad. La semilla tampoco
-crea registros en `seg_menu`, así que Angular conserva el menú base hasta que el
-tenant configure entradas dinámicas.
+`ObtenerMenuUsuario` devuelve solo menús activos de módulos con permisos efectivos
+para el usuario. Para superadmin devuelve los menús activos de todos los módulos
+activos y habilitados. En ambos casos respeta `habilitado` y las fechas de
+configuración del módulo. Angular toma el menú funcional de este endpoint y ya no
+mantiene un menú de respaldo codificado.
 
-No se modificó el esquema ni los scripts SQL. La tabla de auditoría no permite
-revocar sesiones individuales; la desactivación del usuario bloquea sus tokens de
-inmediato, pero un cambio de contraseña no invalida refresh tokens previos antes
-de su expiración.
+Las instalaciones nuevas deben partir de `Gestion UniCore/UniCoreBDv1.2.sql`, que
+ya incluye el esquema y los datos iniciales de permisos y menús. Para tenants que ya
+tienen una base creada, ejecutar una sola vez
+`Gestion UniCore/migracion-autorizacion-dinamica.sql` y
+`Gestion UniCore/migracion-estructura-academica.sql`, en ese orden. La primera
+añade la marca de superadmin y el acceso inicial de Seguridad; la segunda agrega
+los permisos y menús de Estructura Académica. La asignación del rol `SUPERADMIN` a
+una cuenta se realiza de forma controlada en la base de datos.
+
+La tabla de auditoría no permite revocar sesiones individuales; la desactivación del
+usuario bloquea sus tokens de inmediato, pero un cambio de contraseña no invalida
+refresh tokens previos antes de su expiración.

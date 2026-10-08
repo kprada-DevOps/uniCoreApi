@@ -15,6 +15,7 @@ using UniCore.Api.Modules.Personas.Managers;
 using UniCore.Api.Modules.Seguridad.Managers;
 using UniCore.Api.Modules.Seguridad.Authorization;
 using UniCore.Api.Modules.EstructuraAcademica.Managers;
+using UniCore.Api.Modules.PlanEstudios.Managers;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -76,7 +77,6 @@ builder.Services
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddSingleton<IAuthorizationPolicyProvider, PermisoPolicyProvider>();
 builder.Services.AddScoped<IAuthorizationHandler, PermisoAuthorizationHandler>();
-builder.Services.AddScoped<IAuthorizationHandler, RolAuthorizationHandler>();
 builder.Services.AddAuthorization();
 
 // ---------- CORS ----------
@@ -165,6 +165,13 @@ builder.Services.AddScoped<AulasManager>();
 builder.Services.AddScoped<ProgramaNivelManager>();
 builder.Services.AddScoped<ProgramaModalidadManager>();
 builder.Services.AddScoped<TipoPeriodoManager>();
+builder.Services.AddScoped<PlanEstudiosCatalogosManager>();
+builder.Services.AddScoped<CatalogosRelacionadosManager>();
+builder.Services.AddScoped<AsignaturasManager>();
+builder.Services.AddScoped<PlanesEstudioManager>();
+builder.Services.AddScoped<ComponentesManager>();
+builder.Services.AddScoped<RequisitosCocurricularesManager>();
+builder.Services.AddScoped<CumplimientoEstudianteManager>();
 
 var app = builder.Build();
 

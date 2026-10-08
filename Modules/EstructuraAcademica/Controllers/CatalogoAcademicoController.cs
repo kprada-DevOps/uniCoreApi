@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Authorization;
 using UniCore.Api.Helpers;
 using UniCore.Api.Modules.EstructuraAcademica.Managers;
 
@@ -10,10 +11,12 @@ public abstract class CatalogoAcademicoController<TDto, TRequest>(
     where TRequest : class
 {
     [HttpGet]
+    [Authorize(Policy = "PERMISO:ESTRUCTURA_ACADEMICA.CONSULTAR")]
     public async Task<ActionResult> Listar(string conexion, [FromQuery] bool incluirInactivos = false)
         => Respuesta.Success(await manager.Listar(conexion, incluirInactivos));
 
     [HttpGet("{cod:int:min(1)}")]
+    [Authorize(Policy = "PERMISO:ESTRUCTURA_ACADEMICA.CONSULTAR")]
     public async Task<ActionResult> Obtener(string conexion, int cod)
     {
         var item = await manager.Obtener(cod, conexion);
@@ -21,6 +24,7 @@ public abstract class CatalogoAcademicoController<TDto, TRequest>(
     }
 
     [HttpPost]
+    [Authorize(Policy = "PERMISO:ESTRUCTURA_ACADEMICA.CREAR")]
     public async Task<ActionResult> Crear(string conexion, [FromBody] TRequest request)
     {
         var cod = await manager.Crear(request, conexion);
@@ -28,6 +32,7 @@ public abstract class CatalogoAcademicoController<TDto, TRequest>(
     }
 
     [HttpPut("{cod:int:min(1)}")]
+    [Authorize(Policy = "PERMISO:ESTRUCTURA_ACADEMICA.EDITAR")]
     public async Task<ActionResult> Actualizar(string conexion, int cod, [FromBody] TRequest request)
     {
         if (await manager.Obtener(cod, conexion) is null)
@@ -38,6 +43,7 @@ public abstract class CatalogoAcademicoController<TDto, TRequest>(
     }
 
     [HttpPut("{cod:int:min(1)}/Estado")]
+    [Authorize(Policy = "PERMISO:ESTRUCTURA_ACADEMICA.EDITAR")]
     public async Task<ActionResult> Estado(string conexion, int cod, [FromQuery] bool activo)
     {
         if (await manager.Obtener(cod, conexion) is null)

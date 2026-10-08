@@ -14,9 +14,9 @@ public sealed class RolesManager
     {
         var estado = incluirInactivos ? string.Empty : "AND activo = 1";
         var query = $@"
-SELECT cod, codigo, nombre, descripcion, activo
+SELECT cod, codigo, nombre, descripcion, activo, es_superadmin
 FROM seg_roles
-WHERE (@busqueda IS NULL OR codigo LIKE @busqueda OR nombre LIKE @busqueda)
+WHERE es_superadmin=0 AND (@busqueda IS NULL OR codigo LIKE @busqueda OR nombre LIKE @busqueda)
 {estado}
 ORDER BY codigo;";
         var filtro = string.IsNullOrWhiteSpace(busqueda) ? null : $"%{busqueda.Trim()}%";
@@ -25,7 +25,7 @@ ORDER BY codigo;";
 
     public async Task<RolDetalleDto?> ObtenerRol(int cod, string conexion)
     {
-        const string rolSql = "SELECT cod, codigo, nombre, descripcion, activo FROM seg_roles WHERE cod = @cod LIMIT 1;";
+        const string rolSql = "SELECT cod, codigo, nombre, descripcion, activo, es_superadmin FROM seg_roles WHERE cod = @cod LIMIT 1;";
         var rol = await _database.GetOne<RolSeguridadDto>(rolSql, new { cod }, conexion);
         if (rol is null) return null;
 
@@ -44,6 +44,9 @@ ORDER BY p.codigo;";
         const string sql = "SELECT COUNT(*) FROM seg_roles WHERE codigo = @codigo AND (@excluir IS NULL OR cod <> @excluir);";
         return await _database.ExecuteScalar<long>(sql, new { codigo, excluir = excluirCod }, conexion) > 0;
     }
+
+    public Task<bool> EsRolSuperadmin(int cod, string conexion)
+        => _database.ExecuteScalar<bool>("SELECT es_superadmin FROM seg_roles WHERE cod=@cod LIMIT 1;", new { cod }, conexion);
 
     public async Task<List<int>> PermisosInvalidos(IEnumerable<int> codigos, string conexion)
     {

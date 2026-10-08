@@ -6,5 +6,5 @@ using UniCore.Api.Modules.EstructuraAcademica.Requests;
 
 namespace UniCore.Api.Modules.EstructuraAcademica.Controllers;
 
-[ApiController, Route("{conexion}/TipoPeriodo"), Authorize(Policy = "ROL:ADMIN")]
+[ApiController, Route("{conexion}/TipoPeriodo"), Authorize]
 public sealed class TipoPeriodoController(TipoPeriodoManager manager) : CatalogoAcademicoController<TipoPeriodoDto, TipoPeriodoRequest>(manager) { }

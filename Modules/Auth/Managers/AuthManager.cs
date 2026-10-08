@@ -59,6 +59,14 @@ WHERE ur.cod_usuario = @cod_usuario
     AND (mc.fecha_fin IS NULL OR mc.fecha_fin >= NOW())))
 ORDER BY p.codigo;";
 
+    private const string EsSuperadminSql = @"
+SELECT EXISTS(
+    SELECT 1
+    FROM seg_usuario_roles ur
+    INNER JOIN seg_roles r ON r.cod = ur.cod_rol
+    WHERE ur.cod_usuario = @cod_usuario AND r.activo = 1 AND r.es_superadmin = 1
+);";
+
     private const string ActualizarUltimoAccesoSql = @"
 UPDATE seg_usuarios
 SET ultimo_acceso = @ultimo_acceso
@@ -107,8 +115,12 @@ WHERE cod = @cod;";
     {
         usuario.roles = await ObtenerRolesUsuario(usuario.cod, conexion);
         usuario.permisos = await ObtenerPermisosUsuario(usuario.cod, conexion);
+        usuario.es_superadmin = await EsSuperadmin(usuario.cod, conexion);
         return usuario;
     }
+
+    public Task<bool> EsSuperadmin(long codUsuario, string conexion)
+        => _database.ExecuteScalar<bool>(EsSuperadminSql, new { cod_usuario = codUsuario }, conexion);
 
     /// <summary>
     /// Registra el último acceso con la fecha ajustada a la zona horaria de la conexión.

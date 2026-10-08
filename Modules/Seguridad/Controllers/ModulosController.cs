@@ -6,7 +6,7 @@ using UniCore.Api.Modules.Seguridad.Requests;
 
 namespace UniCore.Api.Modules.Seguridad.Controllers;
 
-[ApiController, Route("{conexion}/[controller]"), Authorize(Policy="ROL:ADMIN")]
+[ApiController, Route("{conexion}/[controller]"), Authorize(Policy="PERMISO:SEGURIDAD.ADMINISTRAR")]
 public sealed class ModulosController(ModulosManager manager, AuditoriaManager audit) : ControllerBase
 {
     [HttpGet("ObtenerModulos")]

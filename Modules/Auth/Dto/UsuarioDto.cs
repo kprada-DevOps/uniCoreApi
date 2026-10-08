@@ -23,6 +23,9 @@ public sealed class UsuarioDto
 
     public DateTime? ultimo_acceso { get; set; }
 
+    /// <summary>Privilegio protegido, calculado desde los roles activos del usuario.</summary>
+    public bool es_superadmin { get; set; }
+
     /// <summary>
     /// Roles activos del usuario (codigo de seg_roles). Se rellena al autenticar.
     /// </summary>

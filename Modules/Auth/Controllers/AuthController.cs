@@ -172,7 +172,7 @@ public sealed class AuthController : ControllerBase
 
         usuario = await _authManager.CompletarPermisos(usuario, conexion);
 
-        return Respuesta.Success(new { roles = usuario.roles, permisos = usuario.permisos });
+        return Respuesta.Success(new { roles = usuario.roles, permisos = usuario.permisos, es_superadmin = usuario.es_superadmin });
     }
 
     /// <summary>

@@ -8,7 +8,7 @@ namespace UniCore.Api.Modules.Seguridad.Controllers;
 
 [ApiController]
 [Route("{conexion}/[controller]")]
-[Authorize(Policy = "ROL:ADMIN")]
+[Authorize(Policy = "PERMISO:SEGURIDAD.ADMINISTRAR")]
 public sealed class RolesController : ControllerBase
 {
     private readonly RolesManager _manager;
@@ -22,6 +22,7 @@ public sealed class RolesController : ControllerBase
     [HttpGet("ObtenerRol/{cod:int:min(1)}")]
     public async Task<ActionResult> ObtenerRol(string conexion, int cod)
     {
+        if (await _manager.EsRolSuperadmin(cod, conexion)) return Respuesta.NotFound("El rol no existe.");
         var rol = await _manager.ObtenerRol(cod, conexion);
         return rol is null ? Respuesta.NotFound("El rol no existe.") : Respuesta.Success(rol);
     }
@@ -43,6 +44,7 @@ public sealed class RolesController : ControllerBase
     public async Task<ActionResult> ActualizarRol(string conexion, int cod, [FromBody] RolRequest request)
     {
         request.codigo = request.codigo.Trim().ToUpperInvariant();
+        if (await _manager.EsRolSuperadmin(cod, conexion)) return Respuesta.Failed<object>(mensaje: "El rol superadmin solo puede administrarse mediante un procedimiento controlado.");
         if (await _manager.CodigoExiste(request.codigo, cod, conexion)) return Respuesta.Conflict("El código de rol ya existe.");
         var invalidos = await _manager.PermisosInvalidos(request.cod_permisos, conexion);
         if (invalidos.Count > 0) return Respuesta.Failed<object>(mensaje: $"Permisos inexistentes o inactivos: {string.Join(", ", invalidos)}.");
@@ -64,6 +66,7 @@ public sealed class RolesController : ControllerBase
 
     private async Task<ActionResult> EstablecerActivo(int cod, bool activo, string conexion)
     {
+        if (await _manager.EsRolSuperadmin(cod, conexion)) return Respuesta.Failed<object>(mensaje: "El rol superadmin no se puede desactivar desde esta pantalla.");
         var antes = await _manager.ObtenerRol(cod, conexion);
         if (antes is null) return Respuesta.NotFound("El rol no existe.");
         await _manager.EstablecerActivo(cod, activo, conexion);

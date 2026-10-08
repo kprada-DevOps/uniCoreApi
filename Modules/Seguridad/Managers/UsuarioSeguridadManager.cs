@@ -30,7 +30,8 @@ public sealed class UsuarioSeguridadManager
         bool incluirInactivos,
         string? busqueda,
         int pagina,
-        int tamanoPagina)
+        int tamanoPagina,
+        bool incluirSuperadmins)
     {
         pagina = Math.Max(1, pagina);
         tamanoPagina = Math.Clamp(tamanoPagina, 1, 100);
@@ -38,13 +39,18 @@ public sealed class UsuarioSeguridadManager
         var filtroBusqueda = @"WHERE (@busqueda IS NULL
     OR u.username LIKE @busqueda
     OR p.numero_documento LIKE @busqueda
-    OR CONCAT_WS(' ', p.primer_nombre, p.segundo_nombre, p.primer_apellido, p.segundo_apellido) LIKE @busqueda)";
+    OR CONCAT_WS(' ', p.primer_nombre, p.segundo_nombre, p.primer_apellido, p.segundo_apellido) LIKE @busqueda)
+    AND (@incluirSuperadmins=1 OR NOT EXISTS (
+        SELECT 1 FROM seg_usuario_roles sur JOIN seg_roles sr ON sr.cod=sur.cod_rol AND sr.es_superadmin=1
+        WHERE sur.cod_usuario=u.cod
+    ))";
         var condicion = $"{filtroBusqueda} {filtroEstado}";
         var parametros = new
         {
             busqueda = string.IsNullOrWhiteSpace(busqueda) ? null : $"%{busqueda.Trim()}%",
             offset = ((long)pagina - 1) * tamanoPagina,
             tamano = tamanoPagina,
+            incluirSuperadmins,
         };
         const string from = @"
 FROM seg_usuarios u
@@ -82,7 +88,7 @@ LIMIT 1;";
 
         const string rolesQuery = @"
 SELECT r.cod AS cod, r.codigo AS codigo, r.nombre AS nombre,
-       r.descripcion AS descripcion, r.activo AS activo
+       r.descripcion AS descripcion, r.activo AS activo, r.es_superadmin AS es_superadmin
 FROM seg_usuario_roles ur
 INNER JOIN seg_roles r ON r.cod = ur.cod_rol
 WHERE ur.cod_usuario = @cod_usuario
@@ -92,15 +98,28 @@ ORDER BY r.codigo;";
         return new UsuarioDetalleDto { usuario = usuario, roles = roles };
     }
 
-    public Task<List<RolSeguridadDto>> ObtenerRoles(string conexion)
+    public Task<List<RolSeguridadDto>> ObtenerRoles(string conexion, bool incluirSuperadmin)
     {
         const string query = @"
-SELECT cod, codigo, nombre, descripcion, activo
+SELECT cod, codigo, nombre, descripcion, activo, es_superadmin
 FROM seg_roles
-WHERE activo = 1
+WHERE activo = 1 AND (@incluirSuperadmin=1 OR es_superadmin=0)
 ORDER BY activo DESC, codigo;";
-        return _database.GetMany<RolSeguridadDto>(query, conexion: conexion);
+        return _database.GetMany<RolSeguridadDto>(query, new { incluirSuperadmin }, conexion);
     }
+
+    public async Task<List<int>> RolesSuperadmin(IEnumerable<int> codRoles, string conexion)
+    {
+        var codigos = codRoles.Distinct().ToArray();
+        if (codigos.Length == 0) return [];
+        return await _database.GetMany<int>("SELECT cod FROM seg_roles WHERE es_superadmin=1 AND cod IN @codigos;", new { codigos }, conexion);
+    }
+
+    public Task<bool> UsuarioEsSuperadmin(long codUsuario, string conexion)
+        => _database.ExecuteScalar<bool>(@"
+SELECT EXISTS(SELECT 1 FROM seg_usuario_roles ur
+JOIN seg_roles r ON r.cod=ur.cod_rol AND r.activo=1 AND r.es_superadmin=1
+WHERE ur.cod_usuario=@cod_usuario);", new { cod_usuario = codUsuario }, conexion);
 
     public async Task<bool> UsernameExiste(string username, long? excluirCod, string conexion)
     {
