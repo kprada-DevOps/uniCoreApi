@@ -14,7 +14,9 @@ public sealed class UsuarioSeguridadManager
     u.activo AS activo,
     u.ultimo_acceso AS ultimo_acceso,
     u.createdday AS createdday,
-    u.updatedday AS updatedday";
+    u.updatedday AS updatedday,
+    p.numero_documento AS persona_numero_documento,
+    CONCAT_WS(' ', p.primer_nombre, p.segundo_nombre, p.primer_apellido, p.segundo_apellido) AS persona_nombre_completo";
 
     private readonly DatabaseProvider _database;
 
@@ -71,6 +73,7 @@ LIMIT @tamano OFFSET @offset;";
         const string query = $@"
 SELECT{ColumnasUsuario}
 FROM seg_usuarios u
+LEFT JOIN per_personas p ON p.cod = u.cod_persona
 WHERE u.cod = @cod
 LIMIT 1;";
 

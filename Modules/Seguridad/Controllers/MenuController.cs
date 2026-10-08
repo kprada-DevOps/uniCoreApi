@@ -27,27 +27,29 @@ public sealed class MenuController(MenuManager manager, AuditoriaManager audit) 
     public async Task<ActionResult> Crear(string conexion,[FromBody] MenuRequest r)
     {
         r.codigo=r.codigo.Trim().ToUpperInvariant();
+        r.ruta=MenuManager.NormalizarRuta(r.ruta);
         if(!await manager.ModuloExiste(r.cod_modulo,conexion))return Respuesta.Failed<object>(mensaje:"El módulo no existe o está inactivo.");
-        if(!await manager.PadreValido(r.cod_padre,r.cod_modulo,null,conexion))return Respuesta.Failed<object>(mensaje:"El elemento padre debe ser activo y pertenecer al mismo módulo.");
+        if(!await manager.PadreValido(r.cod_padre,r.cod_modulo,null,conexion))return Respuesta.Failed<object>(mensaje:"El padre debe estar activo; si pertenece a otro módulo debe ser de tipo GRUPO.");
         if(await manager.CodigoExiste(r.codigo,null,conexion)is not null)return Respuesta.Conflict("El código del menú ya existe.");
-        var id=await manager.Crear(r,conexion);await audit.Registrar(conexion,"seg_menu",id.ToString(),"CREAR",nuevo:r);return Respuesta.Success(id,"Elemento de menú creado");
+        var id=await manager.Crear(r,conexion);await audit.Registrar(conexion,"seg_menu",id.ToString(),"CREAR",nuevo:r);return Respuesta.Success(await manager.Obtener(id,conexion),"Elemento de menú creado");
     }
     [Authorize(Policy="ROL:ADMIN")]
     [HttpPut("ActualizarMenu/{cod:int:min(1)}")]
     public async Task<ActionResult> Actualizar(string conexion,int cod,[FromBody] MenuRequest r)
     {
         r.codigo=r.codigo.Trim().ToUpperInvariant();
+        r.ruta=MenuManager.NormalizarRuta(r.ruta);
         if(!await manager.ModuloExiste(r.cod_modulo,conexion))return Respuesta.Failed<object>(mensaje:"El módulo no existe o está inactivo.");
-        if(!await manager.PadreValido(r.cod_padre,r.cod_modulo,cod,conexion))return Respuesta.Failed<object>(mensaje:"El padre debe pertenecer al mismo módulo y no puede ser el propio elemento.");
+        if(!await manager.PadreValido(r.cod_padre,r.cod_modulo,cod,conexion))return Respuesta.Failed<object>(mensaje:"El padre debe estar activo, no formar un ciclo y ser de tipo GRUPO si pertenece a otro módulo.");
         if(await manager.CodigoExiste(r.codigo,cod,conexion)is not null)return Respuesta.Conflict("El código del menú ya existe.");
         var antes=await manager.Listar(conexion,r.cod_modulo,true);var anterior=antes.FirstOrDefault(x=>x.cod==cod);if(anterior is null)return Respuesta.NotFound("El elemento de menú no existe.");
-        await manager.Actualizar(cod,r,conexion);await audit.Registrar(conexion,"seg_menu",cod.ToString(),"EDITAR",anterior,r);return Respuesta.Success(true,"Elemento de menú actualizado");
+        await manager.Actualizar(cod,r,conexion);await audit.Registrar(conexion,"seg_menu",cod.ToString(),"EDITAR",anterior,r);return Respuesta.Success(await manager.Obtener(cod,conexion),"Elemento de menú actualizado");
     }
     [Authorize(Policy="ROL:ADMIN")]
     [HttpPut("CambiarEstado/{cod:int:min(1)}")]
     public async Task<ActionResult> Estado(string conexion,int cod,[FromQuery] bool activo)
     {
         var lista=await manager.Listar(conexion,null,true);var antes=lista.FirstOrDefault(x=>x.cod==cod);if(antes is null)return Respuesta.NotFound("El elemento de menú no existe.");
-        await manager.Estado(cod,activo,conexion);await audit.Registrar(conexion,"seg_menu",cod.ToString(),activo?"ACTIVAR":"DESACTIVAR",antes,new{activo});return Respuesta.Success(true,"Estado actualizado");
+        await manager.Estado(cod,activo,conexion);await audit.Registrar(conexion,"seg_menu",cod.ToString(),activo?"ACTIVAR":"DESACTIVAR",antes,new{activo});return Respuesta.Success(await manager.Obtener(cod,conexion),"Estado actualizado");
     }
 }

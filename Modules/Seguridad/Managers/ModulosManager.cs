@@ -22,7 +22,7 @@ COALESCE(c.habilitado,1) AS habilitado,c.fecha_inicio,c.fecha_fin FROM seg_modul
         await using var tx = _db.BeginTransaction(conexion);
         await _db.ExecuteTransaccion(tx, "INSERT INTO seg_modulos(codigo,nombre,descripcion,icono,orden,activo) VALUES(@codigo,@nombre,@descripcion,@icono,@orden,@activo);", new { codigo = r.codigo.Trim().ToUpperInvariant(), nombre = r.nombre.Trim(), descripcion = Clean(r.descripcion), icono = Clean(r.icono), r.orden, r.activo });
         var id = await _db.ExecuteScalarTransaccion<int>(tx, "SELECT LAST_INSERT_ID();");
-        await _db.ExecuteTransaccion(tx, "INSERT INTO seg_modulos_configuracion(cod_modulo,habilitado,fecha_inicio,fecha_fin) VALUES(@id,@habilitado,@inicio,@fin);", new { id, habilitado = r.habilitado, inicio = r.fecha_inicio, fin = r.fecha_fin });
+        await _db.ExecuteTransaccion(tx, "INSERT INTO seg_modulos_configuracion(cod_modulo,habilitado,fecha_inicio,fecha_fin) VALUES(@id,@habilitado,@inicio,@fin) ON DUPLICATE KEY UPDATE habilitado=VALUES(habilitado),fecha_inicio=VALUES(fecha_inicio),fecha_fin=VALUES(fecha_fin),updatedday=NOW();", new { id, habilitado = r.habilitado, inicio = r.fecha_inicio, fin = r.fecha_fin });
         tx.Commit(); return id;
     }
     public async Task<bool> Actualizar(int cod, ModuloRequest r, string conexion)

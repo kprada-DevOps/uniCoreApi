@@ -14,6 +14,7 @@ using UniCore.Api.Modules.Auth.Managers;
 using UniCore.Api.Modules.Personas.Managers;
 using UniCore.Api.Modules.Seguridad.Managers;
 using UniCore.Api.Modules.Seguridad.Authorization;
+using UniCore.Api.Modules.EstructuraAcademica.Managers;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -156,6 +157,14 @@ builder.Services.AddScoped<PermisosManager>();
 builder.Services.AddScoped<ModulosManager>();
 builder.Services.AddScoped<MenuManager>();
 builder.Services.AddScoped<AuditoriaManager>();
+builder.Services.AddScoped<SedesManager>();
+builder.Services.AddScoped<FacultadesManager>();
+builder.Services.AddScoped<DepartamentosManager>();
+builder.Services.AddScoped<ProgramasManager>();
+builder.Services.AddScoped<AulasManager>();
+builder.Services.AddScoped<ProgramaNivelManager>();
+builder.Services.AddScoped<ProgramaModalidadManager>();
+builder.Services.AddScoped<TipoPeriodoManager>();
 
 var app = builder.Build();
 

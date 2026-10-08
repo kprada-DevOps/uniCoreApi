@@ -47,7 +47,7 @@ public sealed class EstudianteController : ControllerBase
     }
 
     /// <summary>
-    /// Inscribe un estudiante y devuelve su cod. La persona debe existir: si
+    /// Inscribe un estudiante y devuelve la proyección completa creada. La persona debe existir: si
     /// cod_persona no corresponde a ninguna fila, la violacion de FK la traduce el
     /// middleware global a 400. Si esa persona ya esta inscrita, el indice unico
     /// uq_per_estudiante_persona produce un 409.
@@ -59,7 +59,8 @@ public sealed class EstudianteController : ControllerBase
         var cod = await _estudianteManager.CrearEstudiante(request, conexion);
         _logger.LogInformation("Estudiante creado con cod {Cod} en la conexión {Conexion}", cod, conexion);
 
-        return Respuesta.Success(cod, "Estudiante creado correctamente");
+        var estudiante = await _estudianteManager.ObtenerEstudiante(cod, conexion);
+        return Respuesta.Success(estudiante, "Estudiante creado correctamente");
     }
 
     [Authorize(Policy = "PERMISO:ESTUDIANTES.EDITAR")]
@@ -70,7 +71,8 @@ public sealed class EstudianteController : ControllerBase
         if (!actualizado)
             return Respuesta.NotFound($"No existe un estudiante con el código {cod}");
 
-        return Respuesta.Success(true, "Estudiante actualizado correctamente");
+        var estudianteActualizado = await _estudianteManager.ObtenerEstudiante(cod, conexion);
+        return Respuesta.Success(estudianteActualizado, "Estudiante actualizado correctamente");
     }
 
     /// <summary>

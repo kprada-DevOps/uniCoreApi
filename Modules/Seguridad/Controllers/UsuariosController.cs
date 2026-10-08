@@ -62,7 +62,8 @@ public sealed class UsuariosController : ControllerBase
         var cod = await _manager.CrearUsuario(request, conexion);
         _logger.LogInformation("Usuario de seguridad creado con código {Cod} en {Conexion}", cod, conexion);
         await _audit.Registrar(conexion, "seg_usuarios", cod.ToString(), "CREAR", nuevo: new { request.cod_persona, request.username, request.activo, request.cod_roles });
-        return Respuesta.Success(cod, "Usuario creado correctamente");
+        var creado = await _manager.ObtenerUsuario(cod, conexion);
+        return Respuesta.Success(creado, "Usuario creado correctamente");
     }
 
     [HttpPut("ActualizarUsuario/{cod:long:min(1)}")]
@@ -81,9 +82,11 @@ public sealed class UsuariosController : ControllerBase
         var anterior = await _manager.ObtenerUsuario(cod, conexion);
         var actualizado = await _manager.ActualizarUsuario(cod, request, conexion);
         if (actualizado) await _audit.Registrar(conexion, "seg_usuarios", cod.ToString(), "EDITAR", anterior, new { request.cod_persona, request.username, request.activo, request.cod_roles });
-        return actualizado
-            ? Respuesta.Success(true, "Usuario actualizado correctamente")
-            : Respuesta.NotFound($"No existe un usuario con el código {cod}");
+        if (!actualizado)
+            return Respuesta.NotFound($"No existe un usuario con el código {cod}");
+
+        var usuarioActualizado = await _manager.ObtenerUsuario(cod, conexion);
+        return Respuesta.Success(usuarioActualizado, "Usuario actualizado correctamente");
     }
 
     [HttpPut("ActivarUsuario/{cod:long:min(1)}")]
@@ -115,7 +118,8 @@ public sealed class UsuariosController : ControllerBase
 
         await _audit.Registrar(conexion, "seg_usuarios", cod.ToString(), activo ? "ACTIVAR" : "DESACTIVAR", nuevo: new { activo });
         var mensaje = activo ? "Usuario activado correctamente" : "Usuario desactivado correctamente";
-        return Respuesta.Success(true, mensaje);
+        var usuario = await _manager.ObtenerUsuario(cod, conexion);
+        return Respuesta.Success(usuario?.usuario, mensaje);
     }
 
     private async Task<ActionResult?> ValidarRelaciones(

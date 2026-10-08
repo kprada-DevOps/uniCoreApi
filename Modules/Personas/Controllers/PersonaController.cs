@@ -50,7 +50,7 @@ public sealed class PersonaController : ControllerBase
     }
 
     /// <summary>
-    /// Da de alta una persona y devuelve su cod.
+    /// Da de alta una persona y devuelve la proyección completa creada.
     /// Si el par tipo de documento y numero ya existe, la violacion del indice unico
     /// uq_per_persona_documento la traduce el middleware global a 409.
     /// </summary>
@@ -61,7 +61,8 @@ public sealed class PersonaController : ControllerBase
         var cod = await _personaManager.CrearPersona(request, conexion);
         _logger.LogInformation("Persona creada con cod {Cod} en la conexión {Conexion}", cod, conexion);
 
-        return Respuesta.Success(cod, "Persona creada correctamente");
+        var persona = await _personaManager.ObtenerPersona(cod, conexion);
+        return Respuesta.Success(persona, "Persona creada correctamente");
     }
 
     /// <summary>
@@ -76,7 +77,8 @@ public sealed class PersonaController : ControllerBase
         if (!actualizada)
             return Respuesta.NotFound($"No existe una persona con el código {cod}");
 
-        return Respuesta.Success(true, "Persona actualizada correctamente");
+        var personaActualizada = await _personaManager.ObtenerPersona(cod, conexion);
+        return Respuesta.Success(personaActualizada, "Persona actualizada correctamente");
     }
 
     /// <summary>

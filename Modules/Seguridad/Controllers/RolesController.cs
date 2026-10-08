@@ -35,7 +35,8 @@ public sealed class RolesController : ControllerBase
         if (invalidos.Count > 0) return Respuesta.Failed<object>(mensaje: $"Permisos inexistentes o inactivos: {string.Join(", ", invalidos)}.");
         var cod = await _manager.Crear(request, conexion);
         await _audit.Registrar(conexion, "seg_roles", cod.ToString(), "CREAR", nuevo: new { request.codigo, request.nombre, request.descripcion, request.activo, request.cod_permisos });
-        return Respuesta.Success(cod, "Rol creado correctamente");
+        var creado = await _manager.ObtenerRol(cod, conexion);
+        return Respuesta.Success(creado?.rol, "Rol creado correctamente");
     }
 
     [HttpPut("ActualizarRol/{cod:int:min(1)}")]
@@ -49,7 +50,8 @@ public sealed class RolesController : ControllerBase
         if (anterior is null) return Respuesta.NotFound("El rol no existe.");
         await _manager.Actualizar(cod, request, conexion);
         await _audit.Registrar(conexion, "seg_roles", cod.ToString(), "EDITAR", anterior, new { request.codigo, request.nombre, request.descripcion, request.activo, request.cod_permisos });
-        return Respuesta.Success(true, "Rol actualizado correctamente");
+        var actualizado = await _manager.ObtenerRol(cod, conexion);
+        return Respuesta.Success(actualizado?.rol, "Rol actualizado correctamente");
     }
 
     [HttpPut("ActivarRol/{cod:int:min(1)}")]
@@ -66,6 +68,7 @@ public sealed class RolesController : ControllerBase
         if (antes is null) return Respuesta.NotFound("El rol no existe.");
         await _manager.EstablecerActivo(cod, activo, conexion);
         await _audit.Registrar(conexion, "seg_roles", cod.ToString(), activo ? "ACTIVAR" : "DESACTIVAR", antes, new { activo });
-        return Respuesta.Success(true, activo ? "Rol activado correctamente" : "Rol desactivado correctamente");
+        var actualizado = await _manager.ObtenerRol(cod, conexion);
+        return Respuesta.Success(actualizado?.rol, activo ? "Rol activado correctamente" : "Rol desactivado correctamente");
     }
 }

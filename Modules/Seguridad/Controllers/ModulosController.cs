@@ -18,7 +18,7 @@ public sealed class ModulosController(ModulosManager manager, AuditoriaManager a
     {
         r.codigo=r.codigo.Trim().ToUpperInvariant(); if(r.fecha_inicio.HasValue&&r.fecha_fin.HasValue&&r.fecha_fin<r.fecha_inicio)return Respuesta.Failed<object>(mensaje:"La fecha fin debe ser igual o posterior a la fecha inicio.");
         if(await manager.CodigoExiste(r.codigo,null,conexion)is not null)return Respuesta.Conflict("El código del módulo ya existe.");
-        var id=await manager.Crear(r,conexion); await audit.Registrar(conexion,"seg_modulos",id.ToString(),"CREAR",nuevo:r); return Respuesta.Success(id,"Módulo creado correctamente");
+        var id=await manager.Crear(r,conexion); await audit.Registrar(conexion,"seg_modulos",id.ToString(),"CREAR",nuevo:r); return Respuesta.Success(await manager.Obtener(id,conexion),"Módulo creado correctamente");
     }
     [HttpPut("ActualizarModulo/{cod:int:min(1)}")]
     public async Task<ActionResult> Actualizar(string conexion,int cod,[FromBody] ModuloRequest r)
@@ -26,12 +26,12 @@ public sealed class ModulosController(ModulosManager manager, AuditoriaManager a
         r.codigo=r.codigo.Trim().ToUpperInvariant(); if(r.fecha_inicio.HasValue&&r.fecha_fin.HasValue&&r.fecha_fin<r.fecha_inicio)return Respuesta.Failed<object>(mensaje:"La fecha fin debe ser igual o posterior a la fecha inicio.");
         if(await manager.CodigoExiste(r.codigo,cod,conexion)is not null)return Respuesta.Conflict("El código del módulo ya existe.");
         var antes=await manager.Obtener(cod,conexion);if(antes is null)return Respuesta.NotFound("El módulo no existe.");
-        await manager.Actualizar(cod,r,conexion);await audit.Registrar(conexion,"seg_modulos",cod.ToString(),"EDITAR",antes,r);return Respuesta.Success(true,"Módulo actualizado correctamente");
+        await manager.Actualizar(cod,r,conexion);await audit.Registrar(conexion,"seg_modulos",cod.ToString(),"EDITAR",antes,r);return Respuesta.Success(await manager.Obtener(cod,conexion),"Módulo actualizado correctamente");
     }
     [HttpPut("CambiarEstado/{cod:int:min(1)}")]
     public async Task<ActionResult> Estado(string conexion,int cod,[FromQuery] bool activo)
     {
         var antes=await manager.Obtener(cod,conexion);if(antes is null)return Respuesta.NotFound("El módulo no existe.");
-        await manager.Estado(cod,activo,conexion);await audit.Registrar(conexion,"seg_modulos",cod.ToString(),activo?"ACTIVAR":"DESACTIVAR",antes,new{activo});return Respuesta.Success(true,"Estado actualizado");
+        await manager.Estado(cod,activo,conexion);await audit.Registrar(conexion,"seg_modulos",cod.ToString(),activo?"ACTIVAR":"DESACTIVAR",antes,new{activo});return Respuesta.Success(await manager.Obtener(cod,conexion),"Estado actualizado");
     }
 }

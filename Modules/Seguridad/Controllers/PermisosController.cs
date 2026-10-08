@@ -21,7 +21,7 @@ public sealed class PermisosController(PermisosManager manager, AuditoriaManager
         if(!await manager.ModuloExiste(r.cod_modulo,conexion)) return Respuesta.Failed<object>(mensaje:"El módulo no existe.");
         if(await manager.ExisteCodigo(r.codigo,null,conexion) is not null) return Respuesta.Conflict("El código del permiso ya existe.");
         var id=await manager.Crear(r,conexion); await audit.Registrar(conexion,"seg_permisos",id.ToString(),"CREAR",nuevo:r);
-        return Respuesta.Success(id,"Permiso creado correctamente");
+        return Respuesta.Success(await manager.Obtener(id,conexion),"Permiso creado correctamente");
     }
     [HttpPut("ActualizarPermiso/{cod:int:min(1)}")]
     public async Task<ActionResult> Actualizar(string conexion,int cod,[FromBody] PermisoRequest r)
@@ -31,13 +31,13 @@ public sealed class PermisosController(PermisosManager manager, AuditoriaManager
         if(await manager.ExisteCodigo(r.codigo,cod,conexion) is not null) return Respuesta.Conflict("El código del permiso ya existe.");
         var antes=await manager.Obtener(cod,conexion); if(antes is null) return Respuesta.NotFound("El permiso no existe.");
         await manager.Actualizar(cod,r,conexion); await audit.Registrar(conexion,"seg_permisos",cod.ToString(),"EDITAR",antes,r);
-        return Respuesta.Success(true,"Permiso actualizado correctamente");
+        return Respuesta.Success(await manager.Obtener(cod,conexion),"Permiso actualizado correctamente");
     }
     [HttpPut("CambiarEstado/{cod:int:min(1)}")]
     public async Task<ActionResult> Estado(string conexion,int cod,[FromQuery] bool activo)
     {
         var antes=await manager.Obtener(cod,conexion); if(antes is null) return Respuesta.NotFound("El permiso no existe.");
         await manager.Estado(cod,activo,conexion); await audit.Registrar(conexion,"seg_permisos",cod.ToString(),activo?"ACTIVAR":"DESACTIVAR",antes,new { activo });
-        return Respuesta.Success(true,"Estado actualizado");
+        return Respuesta.Success(await manager.Obtener(cod,conexion),"Estado actualizado");
     }
 }

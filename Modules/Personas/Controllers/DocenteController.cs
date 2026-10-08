@@ -47,7 +47,7 @@ public sealed class DocenteController : ControllerBase
     }
 
     /// <summary>
-    /// Registra un docente y devuelve su cod. A diferencia del estudiante, la fecha
+    /// Registra un docente y devuelve la proyección completa creada. A diferencia del estudiante, la fecha
     /// de ingreso es opcional en esta tabla.
     /// </summary>
     [Authorize(Policy = "PERMISO:PERSONAS.CREAR")]
@@ -57,7 +57,8 @@ public sealed class DocenteController : ControllerBase
         var cod = await _docenteManager.CrearDocente(request, conexion);
         _logger.LogInformation("Docente creado con cod {Cod} en la conexión {Conexion}", cod, conexion);
 
-        return Respuesta.Success(cod, "Docente creado correctamente");
+        var docente = await _docenteManager.ObtenerDocente(cod, conexion);
+        return Respuesta.Success(docente, "Docente creado correctamente");
     }
 
     [Authorize(Policy = "PERMISO:PERSONAS.EDITAR")]
@@ -68,7 +69,8 @@ public sealed class DocenteController : ControllerBase
         if (!actualizado)
             return Respuesta.NotFound($"No existe un docente con el código {cod}");
 
-        return Respuesta.Success(true, "Docente actualizado correctamente");
+        var docenteActualizado = await _docenteManager.ObtenerDocente(cod, conexion);
+        return Respuesta.Success(docenteActualizado, "Docente actualizado correctamente");
     }
 
     /// <summary>

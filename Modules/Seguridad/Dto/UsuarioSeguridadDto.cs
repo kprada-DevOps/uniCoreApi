@@ -13,4 +13,6 @@ public sealed class UsuarioSeguridadDto
     public DateTime? ultimo_acceso { get; set; }
     public DateTime createdday { get; set; }
     public DateTime? updatedday { get; set; }
+    public string? persona_numero_documento { get; set; }
+    public string? persona_nombre_completo { get; set; }
 }
