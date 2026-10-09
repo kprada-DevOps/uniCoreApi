@@ -63,13 +63,6 @@ LIMIT 1;";
     OR p.primer_nombre LIKE @busqueda
     OR p.primer_apellido LIKE @busqueda";
 
-    private readonly DatabaseProvider _database;
-
-    public EstudianteManager(DatabaseProvider database)
-    {
-        _database = database;
-    }
-
     public async Task<List<EstudianteDto>> ObtenerEstudiantes(
         string conexion,
         bool incluirInactivos = false,
@@ -89,15 +82,12 @@ SELECT{Columnas}
 {where}
 ORDER BY p.primer_apellido, p.primer_nombre;";
 
-        return await _database.GetMany<EstudianteDto>(
-            query,
-            new { busqueda = string.IsNullOrWhiteSpace(busqueda) ? null : $"%{busqueda}%" },
-            conexion);
+        return await DatabaseConnection.GetMany<EstudianteDto>(conexion, query, new { busqueda = string.IsNullOrWhiteSpace(busqueda) ? null : $"%{busqueda}%" });
     }
 
     public async Task<EstudianteDto?> ObtenerEstudiante(long cod, string conexion)
     {
-        return await _database.GetOne<EstudianteDto>(ObtenerEstudianteSql, new { cod }, conexion);
+        return await DatabaseConnection.GetOne<EstudianteDto>(conexion, ObtenerEstudianteSql, new { cod });
     }
 
     /// <summary>
@@ -119,7 +109,7 @@ ORDER BY p.primer_apellido, p.primer_nombre;";
             estado = request.estado ?? EstadoActivo,
         };
 
-        return await _database.Insert("per_estudiantes", datos, conexion);
+        return await DatabaseConnection.Insert(conexion, "per_estudiantes", datos);
     }
 
     public async Task<bool> ActualizarEstudiante(long cod, EstudianteActualizarRequest request, string conexion)
@@ -135,7 +125,7 @@ ORDER BY p.primer_apellido, p.primer_nombre;";
             updatedday = DbHelpers.GetFechaActualDatetime(conexion),
         };
 
-        return await _database.Update("per_estudiantes", datos, new { cod }, true, conexion);
+        return await DatabaseConnection.Update(conexion, "per_estudiantes", datos, new { cod }, true);
     }
 
     /// <summary>
@@ -153,6 +143,6 @@ ORDER BY p.primer_apellido, p.primer_nombre;";
             updatedday = DbHelpers.GetFechaActualDatetime(conexion),
         };
 
-        return await _database.Update("per_estudiantes", datos, new { cod }, true, conexion);
+        return await DatabaseConnection.Update(conexion, "per_estudiantes", datos, new { cod }, true);
     }
 }

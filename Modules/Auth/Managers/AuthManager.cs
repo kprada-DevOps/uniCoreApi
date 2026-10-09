@@ -72,13 +72,6 @@ UPDATE seg_usuarios
 SET ultimo_acceso = @ultimo_acceso
 WHERE cod = @cod;";
 
-    private readonly DatabaseProvider _database;
-
-    public AuthManager(DatabaseProvider database)
-    {
-        _database = database;
-    }
-
     /// <summary>
     /// Busca un usuario por nombre, sin filtrar por activo: la comprobación
     /// del estado se hace en la capa de autenticación para poder distinguir
@@ -86,7 +79,7 @@ WHERE cod = @cod;";
     /// </summary>
     public async Task<UsuarioDto?> ObtenerUsuarioPorUsername(string username, string conexion)
     {
-        return await _database.GetOne<UsuarioDto>(ObtenerUsuarioSql, new { username }, conexion);
+        return await DatabaseConnection.GetOne<UsuarioDto>(conexion, ObtenerUsuarioSql, new { username });
     }
 
     /// <summary>
@@ -95,17 +88,17 @@ WHERE cod = @cod;";
     /// </summary>
     public async Task<UsuarioDto?> ObtenerUsuarioPorCod(long cod, string conexion)
     {
-        return await _database.GetOne<UsuarioDto>(ObtenerUsuarioPorCodSql, new { cod }, conexion);
+        return await DatabaseConnection.GetOne<UsuarioDto>(conexion, ObtenerUsuarioPorCodSql, new { cod });
     }
 
     public async Task<List<string>> ObtenerRolesUsuario(long codUsuario, string conexion)
     {
-        return await _database.GetMany<string>(ObtenerRolesSql, new { cod_usuario = codUsuario }, conexion);
+        return await DatabaseConnection.GetMany<string>(conexion, ObtenerRolesSql, new { cod_usuario = codUsuario });
     }
 
     public async Task<List<string>> ObtenerPermisosUsuario(long codUsuario, string conexion)
     {
-        return await _database.GetMany<string>(ObtenerPermisosSql, new { cod_usuario = codUsuario }, conexion);
+        return await DatabaseConnection.GetMany<string>(conexion, ObtenerPermisosSql, new { cod_usuario = codUsuario });
     }
 
     /// <summary>
@@ -120,7 +113,7 @@ WHERE cod = @cod;";
     }
 
     public Task<bool> EsSuperadmin(long codUsuario, string conexion)
-        => _database.ExecuteScalar<bool>(EsSuperadminSql, new { cod_usuario = codUsuario }, conexion);
+        => DatabaseConnection.ExecuteScalar<bool>(conexion, EsSuperadminSql, new { cod_usuario = codUsuario });
 
     /// <summary>
     /// Registra el último acceso con la fecha ajustada a la zona horaria de la conexión.
@@ -131,8 +124,7 @@ WHERE cod = @cod;";
         try
         {
             var fecha = DbHelpers.GetFechaActual(conexion);
-            await _database.Execute(ActualizarUltimoAccesoSql,
-                new { ultimo_acceso = fecha, cod = codUsuario }, conexion);
+            await DatabaseConnection.Execute(conexion, ActualizarUltimoAccesoSql, new { ultimo_acceso = fecha, cod = codUsuario });
         }
         catch (Exception)
         {

@@ -4,7 +4,7 @@ using UniCore.Api.Modules.PlanEstudios.Requests;
 
 namespace UniCore.Api.Modules.PlanEstudios.Managers;
 
-public sealed class PlanEstudiosCatalogosManager(DatabaseProvider db)
+public sealed class PlanEstudiosCatalogosManager
 {
     private sealed record TablaCatalogo(string Tabla, string Codigo, string Nombre, string Descripcion, string Activo, string Orden, int MaxCodigo, int MaxNombre);
     private static readonly IReadOnlyDictionary<string, TablaCatalogo> Catalogos = new Dictionary<string, TablaCatalogo>(StringComparer.OrdinalIgnoreCase)
@@ -35,38 +35,38 @@ public sealed class PlanEstudiosCatalogosManager(DatabaseProvider db)
     public Task<List<CatalogoPlanDto>> Listar(string conexion, string catalogo, bool incluirInactivos)
     {
         var t = ObtenerTabla(catalogo);
-        return db.GetMany<CatalogoPlanDto>($"SELECT cod,{t.Codigo} AS codigo,{t.Nombre} AS nombre,{t.Descripcion} AS descripcion,{t.Activo} AS activo FROM {t.Tabla} WHERE (@inactivos=1 OR {t.Activo}=1) ORDER BY {t.Orden},{t.Codigo};", new { inactivos = incluirInactivos }, conexion);
+        return DatabaseConnection.GetMany<CatalogoPlanDto>(conexion, $"SELECT cod,{t.Codigo} AS codigo,{t.Nombre} AS nombre,{t.Descripcion} AS descripcion,{t.Activo} AS activo FROM {t.Tabla} WHERE (@inactivos=1 OR {t.Activo}=1) ORDER BY {t.Orden},{t.Codigo};", new { inactivos = incluirInactivos });
     }
 
     public Task<CatalogoPlanDto?> Obtener(string conexion, string catalogo, int cod)
     {
         var t = ObtenerTabla(catalogo);
-        return db.GetOne<CatalogoPlanDto>($"SELECT cod,{t.Codigo} AS codigo,{t.Nombre} AS nombre,{t.Descripcion} AS descripcion,{t.Activo} AS activo FROM {t.Tabla} WHERE cod=@cod LIMIT 1;", new { cod }, conexion);
+        return DatabaseConnection.GetOne<CatalogoPlanDto>(conexion, $"SELECT cod,{t.Codigo} AS codigo,{t.Nombre} AS nombre,{t.Descripcion} AS descripcion,{t.Activo} AS activo FROM {t.Tabla} WHERE cod=@cod LIMIT 1;", new { cod });
     }
 
     public Task<long?> ExisteCodigo(string conexion, string catalogo, string codigo, int? omitir)
     {
         var t = ObtenerTabla(catalogo);
-        return db.ExecuteScalar<long?>($"SELECT cod FROM {t.Tabla} WHERE {t.Codigo}=@codigo AND (@omitir IS NULL OR cod<>@omitir) LIMIT 1;", new { codigo, omitir }, conexion);
+        return DatabaseConnection.ExecuteScalar<long?>(conexion, $"SELECT cod FROM {t.Tabla} WHERE {t.Codigo}=@codigo AND (@omitir IS NULL OR cod<>@omitir) LIMIT 1;", new { codigo, omitir });
     }
 
     public async Task<int> Crear(string conexion, string catalogo, CatalogoPlanRequest request)
     {
         var t = ObtenerTabla(catalogo);
-        var id = await db.Insert(t.Tabla, new { codigo = Normalizar(request.codigo), nombre = request.nombre.Trim(), descripcion = Limpiar(request.descripcion), activo = request.activo }, conexion);
+        var id = await DatabaseConnection.Insert(conexion, t.Tabla, new { codigo = Normalizar(request.codigo), nombre = request.nombre.Trim(), descripcion = Limpiar(request.descripcion), activo = request.activo });
         return checked((int)id);
     }
 
     public Task<bool> Actualizar(string conexion, string catalogo, int cod, CatalogoPlanRequest request)
     {
         var t = ObtenerTabla(catalogo);
-        return db.Update(t.Tabla, new { codigo = Normalizar(request.codigo), nombre = request.nombre.Trim(), descripcion = Limpiar(request.descripcion), activo = request.activo }, new { cod }, true, conexion);
+        return DatabaseConnection.Update(conexion, t.Tabla, new { codigo = Normalizar(request.codigo), nombre = request.nombre.Trim(), descripcion = Limpiar(request.descripcion), activo = request.activo }, new { cod }, true);
     }
 
     public async Task<bool> Estado(string conexion, string catalogo, int cod, bool activo)
     {
         var t = ObtenerTabla(catalogo);
-        var n = await db.Execute($"UPDATE {t.Tabla} SET {t.Activo}=@activo WHERE cod=@cod;", new { cod, activo }, conexion);
+        var n = await DatabaseConnection.Execute(conexion, $"UPDATE {t.Tabla} SET {t.Activo}=@activo WHERE cod=@cod;", new { cod, activo });
         return n > 0 || await Obtener(conexion, catalogo, cod) is not null;
     }
 

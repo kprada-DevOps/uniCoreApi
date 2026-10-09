@@ -4,7 +4,7 @@ using UniCore.Api.Modules.EstructuraAcademica.Requests;
 
 namespace UniCore.Api.Modules.EstructuraAcademica.Managers;
 
-public sealed class AulasManager(DatabaseProvider db) : CatalogoAcademicoManager<AulaDto, AulaRequest>(db)
+public sealed class AulasManager : CatalogoAcademicoManager<AulaDto, AulaRequest>
 {
     protected override string Tabla => "aca_aulas";
     protected override string Select => "SELECT t.cod,t.cod_sede,t.codigo,t.nombre,t.capacidad,t.tipo,t.estado,t.createdday,s.nombre AS sede_nombre FROM aca_aulas t JOIN aca_sedes s ON s.cod=t.cod_sede";

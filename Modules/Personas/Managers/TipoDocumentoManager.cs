@@ -28,16 +28,9 @@ FROM per_tipos_documento
 WHERE cod = @cod
 LIMIT 1;";
 
-    private readonly DatabaseProvider _database;
-
-    public TipoDocumentoManager(DatabaseProvider database)
-    {
-        _database = database;
-    }
-
     public async Task<List<TipoDocumentoDto>> ObtenerTiposDocumento(string conexion)
     {
-        return await _database.GetMany<TipoDocumentoDto>(ObtenerTiposDocumentoSql, null, conexion);
+        return await DatabaseConnection.GetMany<TipoDocumentoDto>(conexion, ObtenerTiposDocumentoSql, null);
     }
 
     /// <summary>
@@ -47,6 +40,6 @@ LIMIT 1;";
     /// </summary>
     public async Task<TipoDocumentoDto?> ObtenerTipoDocumento(int cod, string conexion)
     {
-        return await _database.GetOne<TipoDocumentoDto>(ObtenerTipoDocumentoSql, new { cod }, conexion);
+        return await DatabaseConnection.GetOne<TipoDocumentoDto>(conexion, ObtenerTipoDocumentoSql, new { cod });
     }
 }

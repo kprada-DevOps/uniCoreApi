@@ -4,7 +4,7 @@ using UniCore.Api.Modules.EstructuraAcademica.Requests;
 
 namespace UniCore.Api.Modules.EstructuraAcademica.Managers;
 
-public sealed class TipoPeriodoManager(DatabaseProvider db) : CatalogoAcademicoManager<TipoPeriodoDto, TipoPeriodoRequest>(db)
+public sealed class TipoPeriodoManager : CatalogoAcademicoManager<TipoPeriodoDto, TipoPeriodoRequest>
 {
     protected override string Tabla => "aca_tipo_periodo";
     protected override string Select => "SELECT t.cod,t.codigo,t.nombre,t.descripcion,t.activo,t.createdday,t.updatedday FROM aca_tipo_periodo t";

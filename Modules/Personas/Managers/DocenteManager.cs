@@ -59,13 +59,6 @@ LIMIT 1;";
     OR p.primer_nombre LIKE @busqueda
     OR p.primer_apellido LIKE @busqueda";
 
-    private readonly DatabaseProvider _database;
-
-    public DocenteManager(DatabaseProvider database)
-    {
-        _database = database;
-    }
-
     public async Task<List<DocenteDto>> ObtenerDocentes(
         string conexion,
         bool incluirInactivos = false,
@@ -85,15 +78,12 @@ SELECT{Columnas}
 {where}
 ORDER BY p.primer_apellido, p.primer_nombre;";
 
-        return await _database.GetMany<DocenteDto>(
-            query,
-            new { busqueda = string.IsNullOrWhiteSpace(busqueda) ? null : $"%{busqueda}%" },
-            conexion);
+        return await DatabaseConnection.GetMany<DocenteDto>(conexion, query, new { busqueda = string.IsNullOrWhiteSpace(busqueda) ? null : $"%{busqueda}%" });
     }
 
     public async Task<DocenteDto?> ObtenerDocente(long cod, string conexion)
     {
-        return await _database.GetOne<DocenteDto>(ObtenerDocenteSql, new { cod }, conexion);
+        return await DatabaseConnection.GetOne<DocenteDto>(conexion, ObtenerDocenteSql, new { cod });
     }
 
     /// <summary>
@@ -113,7 +103,7 @@ ORDER BY p.primer_apellido, p.primer_nombre;";
             estado = request.estado ?? EstadoActivo,
         };
 
-        return await _database.Insert("per_docentes", datos, conexion);
+        return await DatabaseConnection.Insert(conexion, "per_docentes", datos);
     }
 
     public async Task<bool> ActualizarDocente(long cod, DocenteActualizarRequest request, string conexion)
@@ -130,7 +120,7 @@ ORDER BY p.primer_apellido, p.primer_nombre;";
             updatedday = DbHelpers.GetFechaActualDatetime(conexion),
         };
 
-        return await _database.Update("per_docentes", datos, new { cod }, true, conexion);
+        return await DatabaseConnection.Update(conexion, "per_docentes", datos, new { cod }, true);
     }
 
     /// <summary>
@@ -147,6 +137,6 @@ ORDER BY p.primer_apellido, p.primer_nombre;";
             updatedday = DbHelpers.GetFechaActualDatetime(conexion),
         };
 
-        return await _database.Update("per_docentes", datos, new { cod }, true, conexion);
+        return await DatabaseConnection.Update(conexion, "per_docentes", datos, new { cod }, true);
     }
 }

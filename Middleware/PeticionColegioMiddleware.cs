@@ -25,7 +25,7 @@ public sealed class PeticionColegioMiddleware
         _logger = logger;
     }
 
-    public async Task InvokeAsync(HttpContext context, DatabaseProvider database)
+    public async Task InvokeAsync(HttpContext context)
     {
         if (context.User.Identity?.IsAuthenticated != true)
         {
@@ -72,8 +72,7 @@ public sealed class PeticionColegioMiddleware
             context.Response.StatusCode = StatusCodes.Status401Unauthorized;
             return;
         }
-        var activo = await database.ExecuteScalar<long>(
-            "SELECT COUNT(*) FROM seg_usuarios WHERE cod=@cod AND activo=1;", new { cod = codUsuario }, conexionRuta);
+        var activo = await DatabaseConnection.ExecuteScalar<long>(conexionRuta, "SELECT COUNT(*) FROM seg_usuarios WHERE cod=@cod AND activo=1;", new { cod = codUsuario });
         if (activo == 0)
         {
             context.Response.StatusCode = StatusCodes.Status401Unauthorized;

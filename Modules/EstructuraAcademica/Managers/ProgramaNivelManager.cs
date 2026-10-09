@@ -4,7 +4,7 @@ using UniCore.Api.Modules.EstructuraAcademica.Requests;
 
 namespace UniCore.Api.Modules.EstructuraAcademica.Managers;
 
-public sealed class ProgramaNivelManager(DatabaseProvider db) : CatalogoAcademicoManager<ProgramaNivelDto, ProgramaNivelRequest>(db)
+public sealed class ProgramaNivelManager : CatalogoAcademicoManager<ProgramaNivelDto, ProgramaNivelRequest>
 {
     protected override string Tabla => "aca_programa_nivel";
     protected override string Select => "SELECT t.cod,t.codigo,t.nombre,t.descripcion,t.activo,t.createdday,t.updatedday FROM aca_programa_nivel t";

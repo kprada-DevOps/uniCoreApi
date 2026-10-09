@@ -35,7 +35,20 @@ public sealed class CatalogosRelacionadosController : ControllerBase
     [HttpGet("ObtenerRutasIdioma"), Authorize(Policy = "PERMISO:PLAN_ESTUDIOS.CONSULTAR")]
     public async Task<ActionResult> Rutas(string conexion, [FromQuery] int? cod_idioma = null, [FromQuery] bool incluirInactivos = false) => Respuesta.Success(await _manager.Rutas(conexion, cod_idioma, incluirInactivos));
     [HttpPost("CrearRutaIdioma"), Authorize(Policy = "PERMISO:PLAN_ESTUDIOS.ADMINISTRAR")]
-    public async Task<ActionResult> CrearRuta(string conexion, [FromBody] RutaIdiomaRequest r) { r.codigo = r.codigo.Trim().ToUpperInvariant(); if (await _manager.ExisteCodigo("rutas", r.codigo, r.cod_idioma, null, conexion) is not null) return Respuesta.Conflict("El código ya existe para este idioma."); if (!await _manager.ReferenciasValidas(r, conexion)) return Respuesta.Failed<object>(mensaje: "El idioma, nivel final o estado no es válido."); var id = await _manager.CrearRuta(conexion, r); await _audit.Registrar(conexion, "aca_rutas_idioma", id.ToString(), "CREAR", nuevo: r); return Respuesta.Success(await _manager.Rutas(conexion, r.cod_idioma, true), "Ruta creada."); }
+    public async Task<ActionResult> CrearRuta(string conexion, [FromBody] RutaIdiomaRequest r)
+    {
+        r.codigo = r.codigo.Trim().ToUpperInvariant();
+
+        if (await _manager.ExisteCodigo("rutas", r.codigo, r.cod_idioma, null, conexion) is not null)
+            return Respuesta.Conflict("El código ya existe para este idioma.");
+
+        if (!await _manager.ReferenciasValidas(r, conexion))
+            return Respuesta.Failed<object>(mensaje: "El idioma, nivel final o estado no es válido.");
+
+        var id = await _manager.CrearRuta(conexion, r);
+        await _audit.Registrar(conexion, "aca_rutas_idioma", id.ToString(), "CREAR", nuevo: r);
+        return Respuesta.Success(await _manager.Rutas(conexion, r.cod_idioma, true), "Ruta creada.");
+    }
     [HttpPut("ActualizarRutaIdioma/{cod:int:min(1)}"), Authorize(Policy = "PERMISO:PLAN_ESTUDIOS.ADMINISTRAR")]
     public async Task<ActionResult> ActualizarRuta(string conexion, int cod, [FromBody] RutaIdiomaRequest r) { if (!await _manager.Existe("rutas", cod, conexion)) return Respuesta.NotFound("La ruta no existe."); r.codigo = r.codigo.Trim().ToUpperInvariant(); if (await _manager.ExisteCodigo("rutas", r.codigo, r.cod_idioma, cod, conexion) is not null) return Respuesta.Conflict("El código ya existe para este idioma."); if (!await _manager.ReferenciasValidas(r, conexion)) return Respuesta.Failed<object>(mensaje: "El idioma, nivel final o estado no es válido."); await _manager.ActualizarRuta(conexion, cod, r); await _audit.Registrar(conexion, "aca_rutas_idioma", cod.ToString(), "EDITAR", nuevo: r); return Respuesta.Success(await _manager.Rutas(conexion, r.cod_idioma, true), "Ruta actualizada."); }
     [HttpPut("GuardarAsignaturasRutaIdioma/{cod:int:min(1)}"), Authorize(Policy = "PERMISO:PLAN_ESTUDIOS.ADMINISTRAR")]

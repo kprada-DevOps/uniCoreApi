@@ -51,13 +51,6 @@ LIMIT 1;";
     OR primer_apellido LIKE @busqueda
     OR segundo_apellido LIKE @busqueda";
 
-    private readonly DatabaseProvider _database;
-
-    public PersonaManager(DatabaseProvider database)
-    {
-        _database = database;
-    }
-
     /// <summary>
     /// Lista de personas. Por omision solo las activas; <paramref name="incluirInactivas"/>
     /// las trae todas. <paramref name="busqueda"/> filtra por documento y nombres.
@@ -85,15 +78,12 @@ FROM per_personas
 {where}
 ORDER BY primer_apellido, primer_nombre;";
 
-        return await _database.GetMany<PersonaDto>(
-            query,
-            new { busqueda = string.IsNullOrWhiteSpace(busqueda) ? null : $"%{busqueda}%" },
-            conexion);
+        return await DatabaseConnection.GetMany<PersonaDto>(conexion, query, new { busqueda = string.IsNullOrWhiteSpace(busqueda) ? null : $"%{busqueda}%" });
     }
 
     public async Task<PersonaDto?> ObtenerPersona(long cod, string conexion)
     {
-        return await _database.GetOne<PersonaDto>(ObtenerPersonaSql, new { cod }, conexion);
+        return await DatabaseConnection.GetOne<PersonaDto>(conexion, ObtenerPersonaSql, new { cod });
     }
 
     /// <summary>
@@ -124,7 +114,7 @@ ORDER BY primer_apellido, primer_nombre;";
             request.activo,
         };
 
-        return await _database.Insert("per_personas", datos, conexion);
+        return await DatabaseConnection.Insert(conexion, "per_personas", datos);
     }
 
     /// <summary>
@@ -156,7 +146,7 @@ ORDER BY primer_apellido, primer_nombre;";
             updatedday = DbHelpers.GetFechaActualDatetime(conexion),
         };
 
-        return await _database.Update("per_personas", datos, new { cod }, true, conexion);
+        return await DatabaseConnection.Update(conexion, "per_personas", datos, new { cod }, true);
     }
 
     /// <summary>
@@ -173,6 +163,6 @@ ORDER BY primer_apellido, primer_nombre;";
             updatedday = DbHelpers.GetFechaActualDatetime(conexion),
         };
 
-        return await _database.Update("per_personas", datos, new { cod }, true, conexion);
+        return await DatabaseConnection.Update(conexion, "per_personas", datos, new { cod }, true);
     }
 }

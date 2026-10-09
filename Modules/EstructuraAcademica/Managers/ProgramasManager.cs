@@ -4,7 +4,7 @@ using UniCore.Api.Modules.EstructuraAcademica.Requests;
 
 namespace UniCore.Api.Modules.EstructuraAcademica.Managers;
 
-public sealed class ProgramasManager(DatabaseProvider db) : CatalogoAcademicoManager<ProgramaDto, ProgramaRequest>(db)
+public sealed class ProgramasManager : CatalogoAcademicoManager<ProgramaDto, ProgramaRequest>
 {
     protected override string Tabla => "aca_programas";
     protected override string Select => "SELECT t.cod,t.cod_facultad,t.codigo,t.nombre,t.cod_nivel,t.cod_modalidad,t.cod_tipo_periodo,t.duracion_periodos,t.registro_calificado,t.estado,t.createdday,t.updatedday,f.nombre AS facultad_nombre,n.nombre AS nivel_nombre,m.nombre AS modalidad_nombre,p.nombre AS tipo_periodo_nombre FROM aca_programas t JOIN aca_facultades f ON f.cod=t.cod_facultad JOIN aca_programa_nivel n ON n.cod=t.cod_nivel JOIN aca_programa_modalidad m ON m.cod=t.cod_modalidad JOIN aca_tipo_periodo p ON p.cod=t.cod_tipo_periodo";

@@ -18,13 +18,6 @@ public sealed class UsuarioSeguridadManager
     p.numero_documento AS persona_numero_documento,
     CONCAT_WS(' ', p.primer_nombre, p.segundo_nombre, p.primer_apellido, p.segundo_apellido) AS persona_nombre_completo";
 
-    private readonly DatabaseProvider _database;
-
-    public UsuarioSeguridadManager(DatabaseProvider database)
-    {
-        _database = database;
-    }
-
     public async Task<ResultadoPaginadoDto<UsuarioSeguridadDto>> ObtenerUsuarios(
         string conexion,
         bool incluirInactivos,
@@ -55,8 +48,7 @@ public sealed class UsuarioSeguridadManager
         const string from = @"
 FROM seg_usuarios u
 LEFT JOIN per_personas p ON p.cod = u.cod_persona";
-        var total = await _database.ExecuteScalar<long>(
-            $"SELECT COUNT(*) {from} {condicion};", parametros, conexion);
+        var total = await DatabaseConnection.ExecuteScalar<long>(conexion, $"SELECT COUNT(*) {from} {condicion};", parametros);
         var query = $@"
 SELECT{ColumnasUsuario}
 {from}
@@ -64,7 +56,7 @@ SELECT{ColumnasUsuario}
 ORDER BY u.username, u.cod
 LIMIT @tamano OFFSET @offset;";
 
-        var items = await _database.GetMany<UsuarioSeguridadDto>(query, parametros, conexion);
+        var items = await DatabaseConnection.GetMany<UsuarioSeguridadDto>(conexion, query, parametros);
         return new ResultadoPaginadoDto<UsuarioSeguridadDto>
         {
             items = items,
@@ -83,7 +75,7 @@ LEFT JOIN per_personas p ON p.cod = u.cod_persona
 WHERE u.cod = @cod
 LIMIT 1;";
 
-        var usuario = await _database.GetOne<UsuarioSeguridadDto>(query, new { cod }, conexion);
+        var usuario = await DatabaseConnection.GetOne<UsuarioSeguridadDto>(conexion, query, new { cod });
         if (usuario is null) return null;
 
         const string rolesQuery = @"
@@ -94,7 +86,7 @@ INNER JOIN seg_roles r ON r.cod = ur.cod_rol
 WHERE ur.cod_usuario = @cod_usuario
 ORDER BY r.codigo;";
 
-        var roles = await _database.GetMany<RolSeguridadDto>(rolesQuery, new { cod_usuario = cod }, conexion);
+        var roles = await DatabaseConnection.GetMany<RolSeguridadDto>(conexion, rolesQuery, new { cod_usuario = cod });
         return new UsuarioDetalleDto { usuario = usuario, roles = roles };
     }
 
@@ -105,21 +97,21 @@ SELECT cod, codigo, nombre, descripcion, activo, es_superadmin
 FROM seg_roles
 WHERE activo = 1 AND (@incluirSuperadmin=1 OR es_superadmin=0)
 ORDER BY activo DESC, codigo;";
-        return _database.GetMany<RolSeguridadDto>(query, new { incluirSuperadmin }, conexion);
+        return DatabaseConnection.GetMany<RolSeguridadDto>(conexion, query, new { incluirSuperadmin });
     }
 
     public async Task<List<int>> RolesSuperadmin(IEnumerable<int> codRoles, string conexion)
     {
         var codigos = codRoles.Distinct().ToArray();
         if (codigos.Length == 0) return [];
-        return await _database.GetMany<int>("SELECT cod FROM seg_roles WHERE es_superadmin=1 AND cod IN @codigos;", new { codigos }, conexion);
+        return await DatabaseConnection.GetMany<int>(conexion, "SELECT cod FROM seg_roles WHERE es_superadmin=1 AND cod IN @codigos;", new { codigos });
     }
 
     public Task<bool> UsuarioEsSuperadmin(long codUsuario, string conexion)
-        => _database.ExecuteScalar<bool>(@"
+        => DatabaseConnection.ExecuteScalar<bool>(conexion, @"
 SELECT EXISTS(SELECT 1 FROM seg_usuario_roles ur
 JOIN seg_roles r ON r.cod=ur.cod_rol AND r.activo=1 AND r.es_superadmin=1
-WHERE ur.cod_usuario=@cod_usuario);", new { cod_usuario = codUsuario }, conexion);
+WHERE ur.cod_usuario=@cod_usuario);", new { cod_usuario = codUsuario });
 
     public async Task<bool> UsernameExiste(string username, long? excluirCod, string conexion)
     {
@@ -127,15 +119,14 @@ WHERE ur.cod_usuario=@cod_usuario);", new { cod_usuario = codUsuario }, conexion
 SELECT COUNT(*)
 FROM seg_usuarios
 WHERE username = @username AND (@excluir_cod IS NULL OR cod <> @excluir_cod);";
-        return await _database.ExecuteScalar<long>(query,
-            new { username, excluir_cod = excluirCod }, conexion) > 0;
+        return await DatabaseConnection.ExecuteScalar<long>(conexion, query, new { username, excluir_cod = excluirCod }) > 0;
     }
 
     public async Task<bool> PersonaExiste(long? codPersona, string conexion)
     {
         if (!codPersona.HasValue) return true;
         const string query = "SELECT COUNT(*) FROM per_personas WHERE cod = @cod;";
-        return await _database.ExecuteScalar<long>(query, new { cod = codPersona.Value }, conexion) > 0;
+        return await DatabaseConnection.ExecuteScalar<long>(conexion, query, new { cod = codPersona.Value }) > 0;
     }
 
     public async Task<List<int>> RolesInvalidos(IEnumerable<int> codRoles, string conexion, long? codUsuario = null)
@@ -148,7 +139,7 @@ SELECT r.cod
 FROM seg_roles r
 LEFT JOIN seg_usuario_roles ur ON ur.cod_rol = r.cod AND ur.cod_usuario = @cod_usuario
 WHERE r.cod IN @codigos AND (r.activo = 1 OR ur.cod_usuario IS NOT NULL);";
-        var validos = await _database.GetMany<int>(query, new { codigos, cod_usuario = codUsuario }, conexion);
+        var validos = await DatabaseConnection.GetMany<int>(conexion, query, new { codigos, cod_usuario = codUsuario });
         return codigos.Except(validos).ToList();
     }
 
@@ -159,16 +150,16 @@ INSERT INTO seg_usuarios (cod_persona, username, password_hash, activo)
 VALUES (@cod_persona, @username, @password_hash, @activo);";
 
         var roles = request.cod_roles.Distinct().ToArray();
-        await using var transaccion = _database.BeginTransaction(conexion);
+        await using var transaccion = DatabaseConnection.BeginTransaction(conexion);
 
-        await _database.ExecuteTransaccion(transaccion, insert, new
+        await DatabaseConnection.ExecuteTransaccion(transaccion, insert, new
         {
             cod_persona = request.cod_persona,
             username = request.username.Trim(),
             password_hash = BCrypt.Net.BCrypt.HashPassword(request.password),
             request.activo,
         });
-        var cod = await _database.ExecuteScalarTransaccion<long>(transaccion, "SELECT LAST_INSERT_ID();");
+        var cod = await DatabaseConnection.ExecuteScalarTransaccion<long>(transaccion, "SELECT LAST_INSERT_ID();");
         await ReemplazarRoles(transaccion, cod, roles);
         transaccion.Commit();
         return cod;
@@ -176,8 +167,8 @@ VALUES (@cod_persona, @username, @password_hash, @activo);";
 
     public async Task<bool> ActualizarUsuario(long cod, UsuarioActualizarRequest request, string conexion)
     {
-        await using var transaccion = _database.BeginTransaction(conexion);
-        var existe = await _database.ExecuteScalarTransaccion<long>(transaccion,
+        await using var transaccion = DatabaseConnection.BeginTransaction(conexion);
+        var existe = await DatabaseConnection.ExecuteScalarTransaccion<long>(transaccion,
             "SELECT COUNT(*) FROM seg_usuarios WHERE cod = @cod;", new { cod });
         if (existe == 0) return false;
 
@@ -189,7 +180,7 @@ SET cod_persona = @cod_persona,
     updatedday = @updatedday
 WHERE cod = @cod;";
 
-        await _database.ExecuteTransaccion(transaccion, update, new
+        await DatabaseConnection.ExecuteTransaccion(transaccion, update, new
         {
             cod,
             cod_persona = request.cod_persona,
@@ -209,12 +200,10 @@ WHERE cod = @cod;";
 UPDATE seg_usuarios
 SET activo = @activo, updatedday = @updatedday
 WHERE cod = @cod;";
-        await _database.Execute(query,
-            new { cod, activo, updatedday = DbHelpers.GetFechaActualDatetime(conexion) }, conexion);
+        await DatabaseConnection.Execute(conexion, query, new { cod, activo, updatedday = DbHelpers.GetFechaActualDatetime(conexion) });
 
         // MySQL puede informar cero filas modificadas si el estado ya tenía ese valor.
-        var existe = await _database.ExecuteScalar<long>(
-            "SELECT COUNT(*) FROM seg_usuarios WHERE cod = @cod;", new { cod }, conexion);
+        var existe = await DatabaseConnection.ExecuteScalar<long>(conexion, "SELECT COUNT(*) FROM seg_usuarios WHERE cod = @cod;", new { cod });
         return existe > 0;
     }
 
@@ -224,19 +213,18 @@ WHERE cod = @cod;";
 UPDATE seg_usuarios
 SET password_hash = @password_hash, updatedday = @updatedday
 WHERE cod = @cod;";
-        await _database.Execute(query, new
+        await DatabaseConnection.Execute(conexion, query, new
         {
             cod,
             password_hash = BCrypt.Net.BCrypt.HashPassword(password),
             updatedday = DbHelpers.GetFechaActualDatetime(conexion),
-        }, conexion);
-        return await _database.ExecuteScalar<long>(
-            "SELECT COUNT(*) FROM seg_usuarios WHERE cod = @cod;", new { cod }, conexion) > 0;
+        });
+        return await DatabaseConnection.ExecuteScalar<long>(conexion, "SELECT COUNT(*) FROM seg_usuarios WHERE cod = @cod;", new { cod }) > 0;
     }
 
     private async Task ReemplazarRoles(DatabaseTransaction transaccion, long codUsuario, IEnumerable<int> codRoles)
     {
-        await _database.ExecuteTransaccion(transaccion,
+        await DatabaseConnection.ExecuteTransaccion(transaccion,
             "DELETE FROM seg_usuario_roles WHERE cod_usuario = @cod_usuario;",
             new { cod_usuario = codUsuario });
 
@@ -245,7 +233,7 @@ INSERT INTO seg_usuario_roles (cod_usuario, cod_rol)
 VALUES (@cod_usuario, @cod_rol);";
         foreach (var codRol in codRoles)
         {
-            await _database.ExecuteTransaccion(transaccion, insert,
+            await DatabaseConnection.ExecuteTransaccion(transaccion, insert,
                 new { cod_usuario = codUsuario, cod_rol = codRol });
         }
     }

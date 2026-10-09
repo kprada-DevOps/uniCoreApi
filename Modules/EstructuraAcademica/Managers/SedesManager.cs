@@ -4,7 +4,7 @@ using UniCore.Api.Modules.EstructuraAcademica.Requests;
 
 namespace UniCore.Api.Modules.EstructuraAcademica.Managers;
 
-public sealed class SedesManager(DatabaseProvider db) : CatalogoAcademicoManager<SedeDto, SedeRequest>(db)
+public sealed class SedesManager : CatalogoAcademicoManager<SedeDto, SedeRequest>
 {
     protected override string Tabla => "aca_sedes";
     protected override string Select => "SELECT t.cod,t.codigo,t.nombre,t.direccion,t.ciudad,t.departamento,t.pais,t.estado,t.createdday FROM aca_sedes t";
