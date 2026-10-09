@@ -10,18 +10,22 @@ public sealed class CatalogoPlanRequest
     public bool activo { get; set; } = true;
 }
 
-public sealed class AsignaturaRequest { 
+public sealed class AsignaturaRequest
+{
     [Required, StringLength(40)] public string codigo { get; set; } = string.Empty;
-    [Required, StringLength(180)] public string nombre { get; set; } = string.Empty; 
+    [Required, StringLength(180)] public string nombre { get; set; } = string.Empty;
     public string? descripcion { get; set; }
-    [Range(typeof(decimal), "0", "999.99", ParseLimitsInInvariantCulture = true)] 
+    [Range(typeof(decimal), "0", "999.99", ParseLimitsInInvariantCulture = true)]
     public decimal creditos { get; set; }
-    [Range(typeof(decimal), "0", "9999.99", ParseLimitsInInvariantCulture = true)] 
-    public decimal horas_teoricas { get; set; } 
-    [Range(typeof(decimal), "0", "9999.99", ParseLimitsInInvariantCulture = true)] 
-    public decimal horas_practicas { get; set; } [Range(1, int.MaxValue)] 
-    public int cod_tipo_asignatura { get; set; } [Range(1, int.MaxValue)] 
-    public int cod_estado { get; set; } }
+    [Range(typeof(decimal), "0", "9999.99", ParseLimitsInInvariantCulture = true)]
+    public decimal horas_teoricas { get; set; }
+    [Range(typeof(decimal), "0", "9999.99", ParseLimitsInInvariantCulture = true)]
+    public decimal horas_practicas { get; set; }
+    [Range(1, int.MaxValue)]
+    public int cod_tipo_asignatura { get; set; }
+    [Range(1, int.MaxValue)]
+    public int cod_estado { get; set; }
+}
 
 public sealed class PrerrequisitoRequest
 {
@@ -45,7 +49,8 @@ public sealed class PlanElementoRequest
     public int? cod_asignatura { get; set; }
     public int? cod_componente { get; set; }
     [Range(1, 100)] public int semestre { get; set; }
-    [Range(typeof(decimal), "0", "999.99")] public decimal creditos { get; set; }
+    [Range(typeof(decimal), "0", "999.99", ParseLimitsInInvariantCulture = true)]
+    public decimal creditos { get; set; }
     public int? orden { get; set; }
     [Range(1, int.MaxValue)] public int cod_estado { get; set; }
 }
@@ -65,7 +70,8 @@ public sealed class ComponenteRequest
     public string? descripcion { get; set; }
     [Range(1, int.MaxValue)] public int cod_tipo_componente { get; set; }
     [Range(1, int.MaxValue)] public int cod_comportamiento { get; set; }
-    [Range(typeof(decimal), "0", "999.99")] public decimal creditos { get; set; }
+    [Range(typeof(decimal), "0", "999.99", ParseLimitsInInvariantCulture = true)]
+    public decimal creditos { get; set; }
     [Range(1, int.MaxValue)] public int cod_estado { get; set; }
 }
 
@@ -88,7 +94,8 @@ public sealed class RequisitoCocurricularRequest
     public string? descripcion { get; set; }
     [Range(1, int.MaxValue)] public int cod_tipo_requisito { get; set; }
     [Range(1, int.MaxValue)] public int cod_comportamiento { get; set; }
-    [Range(typeof(decimal), "0", "999999.99")] public decimal? cantidad { get; set; }
+    [Range(typeof(decimal), "0", "999999.99", ParseLimitsInInvariantCulture = true)]
+    public decimal? cantidad { get; set; }
     public int? cod_unidad_medida { get; set; }
     [Range(1, int.MaxValue)] public int cod_estado { get; set; }
 }
@@ -148,5 +155,15 @@ public sealed class RutaAsignaturasRequest { [Required] public List<RutaAsignatu
 public sealed class RutaAsignaturaRequest { [Range(1, int.MaxValue)] public int cod_asignatura { get; set; } public int? cod_nivel_idioma { get; set; } [Range(1, int.MaxValue)] public int orden { get; set; } [Range(1, int.MaxValue)] public int cod_estado { get; set; } }
 public sealed class CertificacionIdiomaRequest { [Range(1, int.MaxValue)] public int cod_idioma { get; set; } [Required, StringLength(50)] public string codigo { get; set; } = string.Empty; [Required, StringLength(180)] public string nombre { get; set; } = string.Empty; [StringLength(180)] public string? entidad_emisora { get; set; } public string? descripcion { get; set; } [Range(1, 1200)] public int? vigencia_meses { get; set; } [Range(1, int.MaxValue)] public int cod_estado { get; set; } }
 public sealed class CertificacionNivelesRequest { [Required] public List<CertificacionNivelRequest> niveles { get; set; } = []; }
-public sealed class CertificacionNivelRequest { [Range(1, int.MaxValue)] public int cod_nivel_idioma { get; set; } public decimal? puntaje_minimo { get; set; } public decimal? puntaje_maximo { get; set; } }
+public sealed class CertificacionNivelRequest
+{
+    [Range(1, int.MaxValue)]
+    public int cod_nivel_idioma { get; set; }
+
+    [Range(typeof(decimal), "0", "99999999.99", ParseLimitsInInvariantCulture = true)]
+    public decimal? puntaje_minimo { get; set; }
+
+    [Range(typeof(decimal), "0", "99999999.99", ParseLimitsInInvariantCulture = true)]
+    public decimal? puntaje_maximo { get; set; }
+}
 public sealed class ActividadCocurricularRequest { [Required, StringLength(50)] public string codigo { get; set; } = string.Empty; [Required, StringLength(180)] public string nombre { get; set; } = string.Empty; public string? descripcion { get; set; } [Range(1, int.MaxValue)] public int cod_tipo_actividad { get; set; } [Range(1, int.MaxValue)] public int cod_estado { get; set; } }
