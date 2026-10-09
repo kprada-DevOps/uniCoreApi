@@ -10,17 +10,18 @@ public sealed class CatalogoPlanRequest
     public bool activo { get; set; } = true;
 }
 
-public sealed class AsignaturaRequest
-{
+public sealed class AsignaturaRequest { 
     [Required, StringLength(40)] public string codigo { get; set; } = string.Empty;
-    [Required, StringLength(180)] public string nombre { get; set; } = string.Empty;
+    [Required, StringLength(180)] public string nombre { get; set; } = string.Empty; 
     public string? descripcion { get; set; }
-    [Range(typeof(decimal), "0", "999.99")] public decimal creditos { get; set; }
-    [Range(typeof(decimal), "0", "9999.99")] public decimal horas_teoricas { get; set; }
-    [Range(typeof(decimal), "0", "9999.99")] public decimal horas_practicas { get; set; }
-    [Range(1, int.MaxValue)] public int cod_tipo_asignatura { get; set; }
-    [Range(1, int.MaxValue)] public int cod_estado { get; set; }
-}
+    [Range(typeof(decimal), "0", "999.99", ParseLimitsInInvariantCulture = true)] 
+    public decimal creditos { get; set; }
+    [Range(typeof(decimal), "0", "9999.99", ParseLimitsInInvariantCulture = true)] 
+    public decimal horas_teoricas { get; set; } 
+    [Range(typeof(decimal), "0", "9999.99", ParseLimitsInInvariantCulture = true)] 
+    public decimal horas_practicas { get; set; } [Range(1, int.MaxValue)] 
+    public int cod_tipo_asignatura { get; set; } [Range(1, int.MaxValue)] 
+    public int cod_estado { get; set; } }
 
 public sealed class PrerrequisitoRequest
 {

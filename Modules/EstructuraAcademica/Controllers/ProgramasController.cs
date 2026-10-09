@@ -7,4 +7,10 @@ using UniCore.Api.Modules.EstructuraAcademica.Requests;
 namespace UniCore.Api.Modules.EstructuraAcademica.Controllers;
 
 [ApiController, Route("{conexion}/Programas"), Authorize]
-public sealed class ProgramasController(ProgramasManager manager) : CatalogoAcademicoController<ProgramaDto, ProgramaRequest>(manager) { }
+public sealed class ProgramasController : CatalogoAcademicoController<ProgramaDto, ProgramaRequest>
+{
+    public ProgramasController(ProgramasManager manager)
+        : base(manager)
+    {
+    }
+}

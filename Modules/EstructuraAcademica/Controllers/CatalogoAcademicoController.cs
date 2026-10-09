@@ -5,51 +5,66 @@ using UniCore.Api.Modules.EstructuraAcademica.Managers;
 
 namespace UniCore.Api.Modules.EstructuraAcademica.Controllers;
 
-public abstract class CatalogoAcademicoController<TDto, TRequest>(
-    CatalogoAcademicoManager<TDto, TRequest> manager) : ControllerBase
+public abstract class CatalogoAcademicoController<TDto, TRequest> : ControllerBase
     where TDto : class
     where TRequest : class
 {
+    private readonly CatalogoAcademicoManager<TDto, TRequest> _manager;
+
+    protected CatalogoAcademicoController(CatalogoAcademicoManager<TDto, TRequest> manager)
+    {
+        _manager = manager;
+    }
+
     [HttpGet]
     [Authorize(Policy = "PERMISO:ESTRUCTURA_ACADEMICA.CONSULTAR")]
     public async Task<ActionResult> Listar(string conexion, [FromQuery] bool incluirInactivos = false)
-        => Respuesta.Success(await manager.Listar(conexion, incluirInactivos));
+    {
+        var items = await _manager.Listar(conexion, incluirInactivos);
+        return Respuesta.Success(items);
+    }
 
     [HttpGet("{cod:int:min(1)}")]
     [Authorize(Policy = "PERMISO:ESTRUCTURA_ACADEMICA.CONSULTAR")]
     public async Task<ActionResult> Obtener(string conexion, int cod)
     {
-        var item = await manager.Obtener(cod, conexion);
-        return item is null ? Respuesta.NotFound("El registro no existe.") : Respuesta.Success(item);
+        var item = await _manager.Obtener(cod, conexion);
+        if (item is null)
+            return Respuesta.NotFound("El registro no existe.");
+
+        return Respuesta.Success(item);
     }
 
     [HttpPost]
     [Authorize(Policy = "PERMISO:ESTRUCTURA_ACADEMICA.CREAR")]
     public async Task<ActionResult> Crear(string conexion, [FromBody] TRequest request)
     {
-        var cod = await manager.Crear(request, conexion);
-        return Respuesta.Success(await manager.Obtener(checked((int)cod), conexion), "Registro creado correctamente");
+        var cod = await _manager.Crear(request, conexion);
+        var item = await _manager.Obtener(checked((int)cod), conexion);
+        return Respuesta.Success(item, "Registro creado correctamente");
     }
 
     [HttpPut("{cod:int:min(1)}")]
     [Authorize(Policy = "PERMISO:ESTRUCTURA_ACADEMICA.EDITAR")]
     public async Task<ActionResult> Actualizar(string conexion, int cod, [FromBody] TRequest request)
     {
-        if (await manager.Obtener(cod, conexion) is null)
+        if (await _manager.Obtener(cod, conexion) is null)
             return Respuesta.NotFound("El registro no existe.");
 
-        await manager.Actualizar(cod, request, conexion);
-        return Respuesta.Success(await manager.Obtener(cod, conexion), "Registro actualizado correctamente");
+        await _manager.Actualizar(cod, request, conexion);
+        var item = await _manager.Obtener(cod, conexion);
+        return Respuesta.Success(item, "Registro actualizado correctamente");
     }
 
     [HttpPut("{cod:int:min(1)}/Estado")]
     [Authorize(Policy = "PERMISO:ESTRUCTURA_ACADEMICA.EDITAR")]
     public async Task<ActionResult> Estado(string conexion, int cod, [FromQuery] bool activo)
     {
-        if (await manager.Obtener(cod, conexion) is null)
+        if (await _manager.Obtener(cod, conexion) is null)
             return Respuesta.NotFound("El registro no existe.");
 
-        await manager.EstablecerActivo(cod, activo, conexion);
-        return Respuesta.Success(await manager.Obtener(cod, conexion), "Estado actualizado correctamente");
+        await _manager.EstablecerActivo(cod, activo, conexion);
+        var item = await _manager.Obtener(cod, conexion);
+        return Respuesta.Success(item, "Estado actualizado correctamente");
     }
 }

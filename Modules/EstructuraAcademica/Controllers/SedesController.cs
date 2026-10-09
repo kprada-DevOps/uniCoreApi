@@ -7,4 +7,10 @@ using UniCore.Api.Modules.EstructuraAcademica.Requests;
 namespace UniCore.Api.Modules.EstructuraAcademica.Controllers;
 
 [ApiController, Route("{conexion}/Sedes"), Authorize]
-public sealed class SedesController(SedesManager manager) : CatalogoAcademicoController<SedeDto, SedeRequest>(manager) { }
+public sealed class SedesController : CatalogoAcademicoController<SedeDto, SedeRequest>
+{
+    public SedesController(SedesManager manager)
+        : base(manager)
+    {
+    }
+}

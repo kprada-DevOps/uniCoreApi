@@ -7,4 +7,10 @@ using UniCore.Api.Modules.EstructuraAcademica.Requests;
 namespace UniCore.Api.Modules.EstructuraAcademica.Controllers;
 
 [ApiController, Route("{conexion}/Facultades"), Authorize]
-public sealed class FacultadesController(FacultadesManager manager) : CatalogoAcademicoController<FacultadDto, FacultadRequest>(manager) { }
+public sealed class FacultadesController : CatalogoAcademicoController<FacultadDto, FacultadRequest>
+{
+    public FacultadesController(FacultadesManager manager)
+        : base(manager)
+    {
+    }
+}
