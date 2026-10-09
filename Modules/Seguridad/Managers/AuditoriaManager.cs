@@ -12,14 +12,32 @@ public sealed class AuditoriaManager(IHttpContextAccessor accessor)
 
     public async Task Registrar(string conexion, string tabla, string? registro, string accion, object? anterior = null, object? nuevo = null)
     {
+        await DatabaseConnection.Insert(conexion, "seg_auditoria", CrearRegistro(tabla, registro, accion, anterior, nuevo));
+    }
+
+    public async Task Registrar(DatabaseTransaction transaccion, string tabla, string? registro, string accion, object? anterior = null, object? nuevo = null)
+    {
+        await DatabaseConnection.InsertTransaccion(transaccion, "seg_auditoria", CrearRegistro(tabla, registro, accion, anterior, nuevo));
+    }
+
+    private object CrearRegistro(string tabla, string? registro, string accion, object? anterior, object? nuevo)
+    {
         var http = _accessor.HttpContext;
         var actor = long.TryParse(http?.User.FindFirst("codusuario")?.Value, out var id) ? id : (long?)null;
         var ip = http?.Connection.RemoteIpAddress?.ToString();
         var agent = http?.Request.Headers.UserAgent.ToString();
         if (agent?.Length > 500) agent = agent[..500];
-        const string sql = @"INSERT INTO seg_auditoria(cod_usuario,tabla,cod_registro,accion,datos_anteriores,datos_nuevos,ip,user_agent)
-VALUES(@actor,@tabla,@registro,@accion,@antes,@despues,@ip,@agent);";
-        await DatabaseConnection.Execute(conexion, sql, new { actor, tabla, registro, accion, antes = anterior is null ? null : JsonSerializer.Serialize(anterior), despues = nuevo is null ? null : JsonSerializer.Serialize(nuevo), ip, agent });
+        return new
+        {
+            cod_usuario = actor,
+            tabla,
+            cod_registro = registro,
+            accion,
+            datos_anteriores = anterior is null ? null : JsonSerializer.Serialize(anterior),
+            datos_nuevos = nuevo is null ? null : JsonSerializer.Serialize(nuevo),
+            ip,
+            user_agent = agent,
+        };
     }
 
     public async Task<ResultadoPaginadoDto<AuditoriaDto>> Listar(string conexion, int pagina, int tamano, long? usuario, string? tabla, DateTime? desde, DateTime? hasta)

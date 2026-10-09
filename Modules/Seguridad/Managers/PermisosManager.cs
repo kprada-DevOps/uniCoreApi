@@ -23,20 +23,19 @@ public sealed class PermisosManager
     public async Task<int> Crear(PermisoRequest r, string conexion)
     {
         await using var tx = DatabaseConnection.BeginTransaction(conexion);
-        const string sql = "INSERT INTO seg_permisos(cod_modulo,codigo,nombre,accion,activo,descripcion) VALUES(@cod_modulo,@codigo,@nombre,@accion,@activo,@descripcion);";
-        await DatabaseConnection.ExecuteTransaccion(tx, sql, Param(r));
-        var id = await DatabaseConnection.ExecuteScalarTransaccion<int>(tx, "SELECT LAST_INSERT_ID();");
+        var id = checked((int)await DatabaseConnection.InsertTransaccion(tx, "seg_permisos", CrearParam(r)));
         tx.Commit(); return id;
     }
 
     public async Task<bool> Actualizar(int cod, PermisoRequest r, string conexion)
-        => await DatabaseConnection.Execute(conexion, "UPDATE seg_permisos SET cod_modulo=@cod_modulo,codigo=@codigo,nombre=@nombre,accion=@accion,activo=@activo,descripcion=@descripcion WHERE cod=@cod;", Param(r, cod)) > 0;
+        => await DatabaseConnection.Update(conexion, "seg_permisos", Param(r, cod));
 
     public async Task<bool> Estado(int cod, bool activo, string conexion)
     {
-        var n = await DatabaseConnection.Execute(conexion, "UPDATE seg_permisos SET activo=@activo WHERE cod=@cod;", new { cod, activo });
-        return n > 0 || await Obtener(cod, conexion) is not null;
+        var n = await DatabaseConnection.Update(conexion, "seg_permisos", new { cod, activo });
+        return n || await Obtener(cod, conexion) is not null;
     }
 
+    private static object CrearParam(PermisoRequest r) => new { r.cod_modulo, codigo = r.codigo.Trim().ToUpperInvariant(), nombre = r.nombre.Trim(), accion = r.accion.ToUpperInvariant(), r.activo, descripcion = string.IsNullOrWhiteSpace(r.descripcion) ? null : r.descripcion.Trim() };
     private static object Param(PermisoRequest r, int? cod = null) => new { cod, r.cod_modulo, codigo = r.codigo.Trim().ToUpperInvariant(), nombre = r.nombre.Trim(), accion = r.accion.ToUpperInvariant(), r.activo, descripcion = string.IsNullOrWhiteSpace(r.descripcion) ? null : r.descripcion.Trim() };
 }

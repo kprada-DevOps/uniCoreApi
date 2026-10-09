@@ -67,11 +67,6 @@ SELECT EXISTS(
     WHERE ur.cod_usuario = @cod_usuario AND r.activo = 1 AND r.es_superadmin = 1
 );";
 
-    private const string ActualizarUltimoAccesoSql = @"
-UPDATE seg_usuarios
-SET ultimo_acceso = @ultimo_acceso
-WHERE cod = @cod;";
-
     /// <summary>
     /// Busca un usuario por nombre, sin filtrar por activo: la comprobación
     /// del estado se hace en la capa de autenticación para poder distinguir
@@ -124,7 +119,7 @@ WHERE cod = @cod;";
         try
         {
             var fecha = DbHelpers.GetFechaActual(conexion);
-            await DatabaseConnection.Execute(conexion, ActualizarUltimoAccesoSql, new { ultimo_acceso = fecha, cod = codUsuario });
+            await DatabaseConnection.Update(conexion, "seg_usuarios", new { cod = codUsuario, ultimo_acceso = fecha });
         }
         catch (Exception)
         {

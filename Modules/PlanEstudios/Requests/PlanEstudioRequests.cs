@@ -27,10 +27,37 @@ public sealed class AsignaturaRequest
     public int cod_estado { get; set; }
 }
 
+public sealed class PrevisualizarAsignaturasSecuencialesRequest
+{
+    [Required, RegularExpression("^[a-zA-Z0-9]+$"), StringLength(36)]
+    public string prefijo { get; set; } = string.Empty;
+
+    [Required, StringLength(170)]
+    public string nombre_base { get; set; } = string.Empty;
+
+    [Range(1, 50)]
+    public int cantidad { get; set; }
+}
+
+public sealed class CrearAsignaturasMasivasRequest
+{
+    [Required, MinLength(1), MaxLength(50)]
+    public List<AsignaturaRequest> asignaturas { get; set; } = [];
+}
+
 public sealed class PrerrequisitoRequest
 {
     [Range(1, int.MaxValue)] public int cod_asignatura_requisito { get; set; }
     [Range(1, int.MaxValue)] public int cod_tipo_prerrequisito { get; set; }
+}
+
+public sealed class PrerrequisitosMultiplesRequest
+{
+    [Required, MinLength(1), MaxLength(50)]
+    public List<int> cod_asignaturas_requisito { get; set; } = [];
+
+    [Range(1, int.MaxValue)]
+    public int cod_tipo_prerrequisito { get; set; }
 }
 
 public sealed class PlanEstudioRequest
@@ -48,11 +75,11 @@ public sealed class PlanElementoRequest
 {
     public int? cod_asignatura { get; set; }
     public int? cod_componente { get; set; }
-    [Range(1, 100)] public int semestre { get; set; }
+    [Range(1, 10)] public int semestre { get; set; }
     [Range(typeof(decimal), "0", "999.99", ParseLimitsInInvariantCulture = true)]
     public decimal creditos { get; set; }
     public int? orden { get; set; }
-    [Range(1, int.MaxValue)] public int cod_estado { get; set; }
+    [Range(0, 1)] public int cod_estado { get; set; }
 }
 
 public sealed class PlanRequisitoRequest

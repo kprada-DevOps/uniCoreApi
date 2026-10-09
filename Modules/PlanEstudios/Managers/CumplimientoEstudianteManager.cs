@@ -25,7 +25,7 @@ public sealed class CumplimientoEstudianteManager
         if (!valido) return null;
         var estadoExiste = await DatabaseConnection.ExecuteScalar<bool>(conexion, "SELECT EXISTS(SELECT 1 FROM aca_estados_cumplimiento WHERE cod=@estado AND activo=1);", new { estado = r.cod_estado_cumplimiento });
         if (!estadoExiste) return null;
-        await DatabaseConnection.Execute(conexion, @"INSERT INTO aca_estudiante_requisitos(cod_estudiante,cod_plan_requisito,cod_estado_cumplimiento,fecha_inicio,fecha_cumplimiento,observacion) VALUES(@estudiante,@planRequisito,@estado,@inicio,@cumplimiento,@observacion) ON DUPLICATE KEY UPDATE cod_estado_cumplimiento=VALUES(cod_estado_cumplimiento),fecha_inicio=VALUES(fecha_inicio),fecha_cumplimiento=VALUES(fecha_cumplimiento),observacion=VALUES(observacion),updatedday=NOW();", new { estudiante, planRequisito, estado = r.cod_estado_cumplimiento, inicio = r.fecha_inicio?.Date, cumplimiento = r.fecha_cumplimiento?.Date, observacion = Limpio(r.observacion) });
+        await DatabaseConnection.Upsert(conexion, "aca_estudiante_requisitos", new { cod_estudiante = estudiante, cod_plan_requisito = planRequisito, cod_estado_cumplimiento = r.cod_estado_cumplimiento, fecha_inicio = r.fecha_inicio?.Date, fecha_cumplimiento = r.fecha_cumplimiento?.Date, observacion = Limpio(r.observacion), updatedday = DbHelpers.GetFechaActualDatetime(conexion) });
         return await DatabaseConnection.ExecuteScalar<long>(conexion, "SELECT cod FROM aca_estudiante_requisitos WHERE cod_estudiante=@estudiante AND cod_plan_requisito=@planRequisito LIMIT 1;", new { estudiante, planRequisito });
     }
 
@@ -41,6 +41,6 @@ public sealed class CumplimientoEstudianteManager
     public async Task<EvidenciaRequisitoDto?> ObtenerEvidencia(string conexion, long cod)
         => await DatabaseConnection.GetOne<EvidenciaRequisitoDto>(conexion, @"SELECT ev.cod,ev.cod_estudiante_requisito,ev.cod_requisito_mecanismo,ev.cod_tipo_evidencia,t.nombre AS tipo_evidencia,ev.nombre,ev.referencia,ev.resultado,ev.fecha_emision,ev.fecha_vencimiento,ev.observacion FROM aca_estudiante_requisito_evidencias ev JOIN aca_tipos_evidencia t ON t.cod=ev.cod_tipo_evidencia WHERE ev.cod=@cod LIMIT 1;", new { cod });
 
-    public async Task<bool> EliminarEvidencia(string conexion, long cod) => await DatabaseConnection.Execute(conexion, "DELETE FROM aca_estudiante_requisito_evidencias WHERE cod=@cod;", new { cod }) > 0;
+    public Task<bool> EliminarEvidencia(string conexion, long cod) => DatabaseConnection.Delete(conexion, "aca_estudiante_requisito_evidencias", new { cod });
     private static string? Limpio(string? value) => string.IsNullOrWhiteSpace(value) ? null : value.Trim();
 }

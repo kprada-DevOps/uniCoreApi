@@ -62,7 +62,7 @@ public sealed class CatalogosRelacionadosManager
     public Task<bool> ActualizarCertificacion(string c, int cod, CertificacionIdiomaRequest r) => DatabaseConnection.Update(c, "aca_certificaciones_idioma", new { r.cod_idioma, codigo = Up(r.codigo), nombre = r.nombre.Trim(), entidad_emisora = Clean(r.entidad_emisora), descripcion = Clean(r.descripcion), r.vigencia_meses, r.cod_estado }, new { cod }, true);
     public async Task<int> CrearActividad(string c, ActividadCocurricularRequest r) => checked((int)await DatabaseConnection.Insert(c, "aca_actividades_cocurriculares", new { codigo = Up(r.codigo), nombre = r.nombre.Trim(), descripcion = Clean(r.descripcion), r.cod_tipo_actividad, r.cod_estado }));
     public async Task<bool> ActualizarActividad(string c, int cod, ActividadCocurricularRequest r)
-        => await DatabaseConnection.Execute(c, "UPDATE aca_actividades_cocurriculares SET codigo=@codigo,nombre=@nombre,descripcion=@descripcion,cod_tipo_actividad=@cod_tipo_actividad,cod_estado=@cod_estado,updatedday=NOW() WHERE cod=@cod;", new { cod, codigo = Up(r.codigo), nombre = r.nombre.Trim(), descripcion = Clean(r.descripcion), r.cod_tipo_actividad, r.cod_estado }) > 0;
+        => await DatabaseConnection.Update(c, "aca_actividades_cocurriculares", new { cod, codigo = Up(r.codigo), nombre = r.nombre.Trim(), descripcion = Clean(r.descripcion), r.cod_tipo_actividad, r.cod_estado, updatedday = DbHelpers.GetFechaActualDatetime(c) });
 
     public async Task ReemplazarAsignaturasRuta(string c, int ruta, IReadOnlyCollection<RutaAsignaturaRequest> items)
     {
@@ -75,8 +75,8 @@ public sealed class CatalogosRelacionadosManager
         if (estados.Length > 0 && (await DatabaseConnection.GetManyTransaccion<int>(tx, "SELECT cod FROM aca_estados_configuracion WHERE cod IN @ids AND activo=1;", new { ids = estados })).Count != estados.Length) throw new InvalidOperationException("Un estado de asignatura de ruta no existe o está inactivo.");
         var niveles = items.Where(i => i.cod_nivel_idioma.HasValue).Select(i => i.cod_nivel_idioma!.Value).Distinct().ToArray();
         if (niveles.Length > 0 && (await DatabaseConnection.GetManyTransaccion<int>(tx, "SELECT cod FROM aca_niveles_idioma WHERE cod IN @ids;", new { ids = niveles })).Count != niveles.Length) throw new InvalidOperationException("Un nivel de idioma indicado no existe.");
-        await DatabaseConnection.ExecuteTransaccion(tx, "DELETE FROM aca_ruta_idioma_asignaturas WHERE cod_ruta_idioma=@ruta;", new { ruta });
-        foreach (var i in items) await DatabaseConnection.ExecuteTransaccion(tx, "INSERT INTO aca_ruta_idioma_asignaturas(cod_ruta_idioma,cod_asignatura,cod_nivel_idioma,orden,cod_estado) VALUES(@ruta,@asignatura,@nivel,@orden,@estado);", new { ruta, asignatura = i.cod_asignatura, nivel = i.cod_nivel_idioma, i.orden, estado = i.cod_estado });
+        await DatabaseConnection.DeleteTransaccion(tx, "aca_ruta_idioma_asignaturas", new { cod_ruta_idioma = ruta });
+        foreach (var i in items) await DatabaseConnection.InsertTransaccion(tx, "aca_ruta_idioma_asignaturas", new { cod_ruta_idioma = ruta, cod_asignatura = i.cod_asignatura, cod_nivel_idioma = i.cod_nivel_idioma, i.orden, cod_estado = i.cod_estado });
         tx.Commit();
     }
     public async Task ReemplazarNivelesCertificacion(string c, int cert, IReadOnlyCollection<CertificacionNivelRequest> items)
@@ -87,8 +87,8 @@ public sealed class CatalogosRelacionadosManager
         var ids = items.Select(i => i.cod_nivel_idioma).ToArray();
         if (ids.Length > 0 && (await DatabaseConnection.GetManyTransaccion<int>(tx, "SELECT cod FROM aca_niveles_idioma WHERE cod IN @ids;", new { ids })).Count != ids.Length) throw new InvalidOperationException("Un nivel indicado no existe.");
         if (!await DatabaseConnection.ExecuteScalarTransaccion<bool>(tx, "SELECT EXISTS(SELECT 1 FROM aca_certificaciones_idioma WHERE cod=@cert);", new { cert })) throw new InvalidOperationException("La certificación no existe.");
-        await DatabaseConnection.ExecuteTransaccion(tx, "DELETE FROM aca_certificacion_idioma_niveles WHERE cod_certificacion=@cert;", new { cert });
-        foreach (var i in items) await DatabaseConnection.ExecuteTransaccion(tx, "INSERT INTO aca_certificacion_idioma_niveles(cod_certificacion,cod_nivel_idioma,puntaje_minimo,puntaje_maximo) VALUES(@cert,@nivel,@min,@max);", new { cert, nivel = i.cod_nivel_idioma, min = i.puntaje_minimo, max = i.puntaje_maximo });
+        await DatabaseConnection.DeleteTransaccion(tx, "aca_certificacion_idioma_niveles", new { cod_certificacion = cert });
+        foreach (var i in items) await DatabaseConnection.InsertTransaccion(tx, "aca_certificacion_idioma_niveles", new { cod_certificacion = cert, cod_nivel_idioma = i.cod_nivel_idioma, puntaje_minimo = i.puntaje_minimo, puntaje_maximo = i.puntaje_maximo });
         tx.Commit();
     }
     public async Task<bool> Estado(string tabla, int cod, int estado, string c)

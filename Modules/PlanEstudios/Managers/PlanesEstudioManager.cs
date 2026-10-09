@@ -35,9 +35,9 @@ public sealed class PlanesEstudioManager
         return checked((int)id);
     }
     public async Task<bool> Actualizar(string conexion, int cod, PlanEstudioRequest r)
-        => await DatabaseConnection.Execute(conexion, "UPDATE aca_planes_estudio SET cod_programa=@cod_programa,codigo=@codigo,nombre=@nombre,version=@version,fecha_inicio=@fecha_inicio,fecha_fin=@fecha_fin,cod_estado=@cod_estado,updatedday=NOW() WHERE cod=@cod;", new { cod, r.cod_programa, codigo = r.codigo.Trim().ToUpperInvariant(), nombre = r.nombre.Trim(), version = r.version.Trim(), r.fecha_inicio, r.fecha_fin, r.cod_estado }) > 0;
+        => await DatabaseConnection.Update(conexion, "aca_planes_estudio", new { cod, r.cod_programa, codigo = r.codigo.Trim().ToUpperInvariant(), nombre = r.nombre.Trim(), version = r.version.Trim(), r.fecha_inicio, r.fecha_fin, r.cod_estado, updatedday = DbHelpers.GetFechaActualDatetime(conexion) });
     public async Task<bool> CambiarEstado(string conexion, int cod, int estado)
-        => await DatabaseConnection.Execute(conexion, "UPDATE aca_planes_estudio SET cod_estado=@estado,updatedday=NOW() WHERE cod=@cod;", new { cod, estado }) > 0 || await Obtener(conexion, cod) is not null;
+        => await DatabaseConnection.Update(conexion, "aca_planes_estudio", new { cod, cod_estado = estado, updatedday = DbHelpers.GetFechaActualDatetime(conexion) }) || await Obtener(conexion, cod) is not null;
 
     public async Task ReemplazarElementos(string conexion, int plan, IReadOnlyCollection<PlanElementoRequest> items)
     {
@@ -55,9 +55,9 @@ public sealed class PlanesEstudioManager
             throw new InvalidOperationException("Un componente indicado no existe.");
         if (items.Count > 0 && (await DatabaseConnection.GetManyTransaccion<int>(tx, "SELECT cod FROM aca_estados_configuracion WHERE cod IN @ids AND activo=1;", new { ids = items.Select(i => i.cod_estado).Distinct().ToArray() })).Count != items.Select(i => i.cod_estado).Distinct().Count())
             throw new InvalidOperationException("Un estado de elemento no existe o está inactivo.");
-        await DatabaseConnection.ExecuteTransaccion(tx, "DELETE FROM aca_plan_elementos WHERE cod_plan_estudio=@plan;", new { plan });
+        await DatabaseConnection.DeleteTransaccion(tx, "aca_plan_elementos", new { cod_plan_estudio = plan });
         foreach (var item in items)
-            await DatabaseConnection.ExecuteTransaccion(tx, "INSERT INTO aca_plan_elementos(cod_plan_estudio,cod_asignatura,cod_componente,semestre,creditos,orden,cod_estado) VALUES(@plan,@cod_asignatura,@cod_componente,@semestre,@creditos,@orden,@cod_estado);", new { plan, item.cod_asignatura, item.cod_componente, item.semestre, item.creditos, item.orden, item.cod_estado });
+            await DatabaseConnection.InsertTransaccion(tx, "aca_plan_elementos", new { cod_plan_estudio = plan, item.cod_asignatura, item.cod_componente, item.semestre, item.creditos, item.orden, item.cod_estado });
         tx.Commit();
     }
 
@@ -76,9 +76,9 @@ public sealed class PlanesEstudioManager
         {
             var existente = existentes.FirstOrDefault(x => x.cod_requisito == item.cod_requisito);
             if (existente is null)
-                await DatabaseConnection.ExecuteTransaccion(tx, "INSERT INTO aca_plan_requisitos(cod_plan_estudio,cod_requisito,obligatorio,orden,cod_estado) VALUES(@plan,@cod_requisito,@obligatorio,@orden,@cod_estado);", new { plan, item.cod_requisito, item.obligatorio, item.orden, item.cod_estado });
+                await DatabaseConnection.InsertTransaccion(tx, "aca_plan_requisitos", new { cod_plan_estudio = plan, item.cod_requisito, item.obligatorio, item.orden, item.cod_estado });
             else
-                await DatabaseConnection.ExecuteTransaccion(tx, "UPDATE aca_plan_requisitos SET obligatorio=@obligatorio,orden=@orden,cod_estado=@cod_estado WHERE cod=@cod;", new { cod = existente.cod, item.obligatorio, item.orden, item.cod_estado });
+                await DatabaseConnection.UpdateTransaccion(tx, "aca_plan_requisitos", new { cod = existente.cod, item.obligatorio, item.orden, item.cod_estado });
         }
         var inactivo = await DatabaseConnection.ExecuteScalarTransaccion<int?>(tx, "SELECT cod FROM aca_estados_configuracion WHERE codigo='INACTIVO' AND activo=1 LIMIT 1;");
         foreach (var omitido in existentes.Where(e => !ids.Contains(e.cod_requisito)))
@@ -87,9 +87,9 @@ public sealed class PlanesEstudioManager
             if (tieneSeguimiento)
             {
                 if (!inactivo.HasValue) throw new InvalidOperationException("No se puede retirar un requisito con seguimiento estudiantil porque falta el estado INACTIVO.");
-                await DatabaseConnection.ExecuteTransaccion(tx, "UPDATE aca_plan_requisitos SET cod_estado=@estado WHERE cod=@cod;", new { estado = inactivo.Value, cod = omitido.cod });
+                await DatabaseConnection.UpdateTransaccion(tx, "aca_plan_requisitos", new { cod = omitido.cod, cod_estado = inactivo.Value });
             }
-            else await DatabaseConnection.ExecuteTransaccion(tx, "DELETE FROM aca_plan_requisitos WHERE cod=@cod;", new { cod = omitido.cod });
+            else await DatabaseConnection.DeleteTransaccion(tx, "aca_plan_requisitos", new { cod = omitido.cod });
         }
         tx.Commit();
     }

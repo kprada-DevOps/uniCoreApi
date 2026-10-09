@@ -102,23 +102,22 @@ ORDER BY m.cod_modulo,m.cod_padre,m.orden,m.nombre;";
     public async Task<int> Crear(MenuRequest r, string conexion)
     {
         await using var tx = DatabaseConnection.BeginTransaction(conexion);
-        const string sql = "INSERT INTO seg_menu(cod_modulo,cod_padre,codigo,nombre,descripcion,icono,ruta,orden,tipo,activo) VALUES(@cod_modulo,@cod_padre,@codigo,@nombre,@descripcion,@icono,@ruta,@orden,@tipo,@activo);";
-        await DatabaseConnection.ExecuteTransaccion(tx, sql, P(r));
-        var id = await DatabaseConnection.ExecuteScalarTransaccion<int>(tx, "SELECT LAST_INSERT_ID();");
+        var id = checked((int)await DatabaseConnection.InsertTransaccion(tx, "seg_menu", CrearP(r)));
         tx.Commit(); return id;
     }
     public async Task<bool> Actualizar(int cod, MenuRequest r, string conexion)
-        => await DatabaseConnection.Execute(conexion, "UPDATE seg_menu SET cod_modulo=@cod_modulo,cod_padre=@cod_padre,codigo=@codigo,nombre=@nombre,descripcion=@descripcion,icono=@icono,ruta=@ruta,orden=@orden,tipo=@tipo,activo=@activo,updatedday=NOW() WHERE cod=@cod;", P(r, cod)) > 0;
+        => await DatabaseConnection.Update(conexion, "seg_menu", P(r, cod, DbHelpers.GetFechaActualDatetime(conexion)));
     public async Task<bool> Estado(int cod, bool activo, string conexion)
     {
-        var n = await DatabaseConnection.Execute(conexion, "UPDATE seg_menu SET activo=@activo,updatedday=NOW() WHERE cod=@cod;", new { cod, activo });
-        return n > 0 || await DatabaseConnection.ExecuteScalar<long>(conexion, "SELECT COUNT(*) FROM seg_menu WHERE cod=@cod;", new { cod }) > 0;
+        var n = await DatabaseConnection.Update(conexion, "seg_menu", new { cod, activo, updatedday = DbHelpers.GetFechaActualDatetime(conexion) });
+        return n || await DatabaseConnection.ExecuteScalar<long>(conexion, "SELECT COUNT(*) FROM seg_menu WHERE cod=@cod;", new { cod }) > 0;
     }
     public static string? NormalizarRuta(string? ruta)
     {
         var limpia = Clean(ruta);
         return limpia is null ? null : "/" + limpia.TrimStart('/');
     }
-    private static object P(MenuRequest r, int? cod = null) => new { cod, r.cod_modulo, r.cod_padre, codigo = r.codigo.Trim().ToUpperInvariant(), nombre = r.nombre.Trim(), descripcion = Clean(r.descripcion), icono = Clean(r.icono), ruta = NormalizarRuta(r.ruta), r.orden, tipo = r.tipo.Trim().ToUpperInvariant(), r.activo };
+    private static object CrearP(MenuRequest r) => new { r.cod_modulo, r.cod_padre, codigo = r.codigo.Trim().ToUpperInvariant(), nombre = r.nombre.Trim(), descripcion = Clean(r.descripcion), icono = Clean(r.icono), ruta = NormalizarRuta(r.ruta), r.orden, tipo = r.tipo.Trim().ToUpperInvariant(), r.activo };
+    private static object P(MenuRequest r, int? cod = null, DateTime? updatedday = null) => new { cod, r.cod_modulo, r.cod_padre, codigo = r.codigo.Trim().ToUpperInvariant(), nombre = r.nombre.Trim(), descripcion = Clean(r.descripcion), icono = Clean(r.icono), ruta = NormalizarRuta(r.ruta), r.orden, tipo = r.tipo.Trim().ToUpperInvariant(), r.activo, updatedday };
     private static string? Clean(string? s) => string.IsNullOrWhiteSpace(s) ? null : s.Trim();
 }

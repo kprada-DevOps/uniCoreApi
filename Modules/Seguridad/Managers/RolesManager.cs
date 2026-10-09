@@ -57,30 +57,25 @@ ORDER BY p.codigo;";
     public async Task<int> Crear(RolRequest request, string conexion)
     {
         await using var tx = DatabaseConnection.BeginTransaction(conexion);
-        const string sql = "INSERT INTO seg_roles (codigo, nombre, descripcion, activo) VALUES (@codigo, @nombre, @descripcion, @activo);";
-        await DatabaseConnection.ExecuteTransaccion(tx, sql, new
+        var cod = await DatabaseConnection.InsertTransaccion(tx, "seg_roles", new
         {
             codigo = request.codigo.Trim().ToUpperInvariant(),
             nombre = request.nombre.Trim(),
             descripcion = Normalizar(request.descripcion),
             request.activo,
         });
-        var cod = await DatabaseConnection.ExecuteScalarTransaccion<int>(tx, "SELECT LAST_INSERT_ID();");
-        await ReemplazarPermisos(tx, cod, request.cod_permisos);
+        await ReemplazarPermisos(tx, checked((int)cod), request.cod_permisos);
         tx.Commit();
-        return cod;
+        return checked((int)cod);
     }
 
     public async Task<bool> Actualizar(int cod, RolRequest request, string conexion)
     {
         await using var tx = DatabaseConnection.BeginTransaction(conexion);
-        var existe = await DatabaseConnection.ExecuteScalar<long>(conexion, "SELECT COUNT(*) FROM seg_roles WHERE cod = @cod;", new { cod });
+        var existe = await DatabaseConnection.ExecuteScalarTransaccion<long>(tx, "SELECT COUNT(*) FROM seg_roles WHERE cod = @cod;", new { cod });
         if (existe == 0) return false;
 
-        const string sql = @"
-UPDATE seg_roles SET codigo = @codigo, nombre = @nombre, descripcion = @descripcion, activo = @activo
-WHERE cod = @cod;";
-        await DatabaseConnection.ExecuteTransaccion(tx, sql, new
+        await DatabaseConnection.UpdateTransaccion(tx, "seg_roles", new
         {
             cod,
             codigo = request.codigo.Trim().ToUpperInvariant(),
@@ -95,16 +90,15 @@ WHERE cod = @cod;";
 
     public async Task<bool> EstablecerActivo(int cod, bool activo, string conexion)
     {
-        await DatabaseConnection.Execute(conexion, "UPDATE seg_roles SET activo = @activo WHERE cod = @cod;", new { cod, activo });
+        await DatabaseConnection.Update(conexion, "seg_roles", new { cod, activo });
         return await DatabaseConnection.ExecuteScalar<long>(conexion, "SELECT COUNT(*) FROM seg_roles WHERE cod = @cod;", new { cod }) > 0;
     }
 
     private async Task ReemplazarPermisos(DatabaseTransaction tx, int codRol, IEnumerable<int> codPermisos)
     {
-        await DatabaseConnection.ExecuteTransaccion(tx, "DELETE FROM seg_rol_permisos WHERE cod_rol = @cod_rol;", new { cod_rol = codRol });
-        const string sql = "INSERT INTO seg_rol_permisos (cod_rol, cod_permiso) VALUES (@cod_rol, @cod_permiso);";
+        await DatabaseConnection.DeleteTransaccion(tx, "seg_rol_permisos", new { cod_rol = codRol });
         foreach (var codPermiso in codPermisos.Distinct())
-            await DatabaseConnection.ExecuteTransaccion(tx, sql, new { cod_rol = codRol, cod_permiso = codPermiso });
+            await DatabaseConnection.InsertTransaccion(tx, "seg_rol_permisos", new { cod_rol = codRol, cod_permiso = codPermiso });
     }
 
     private static string? Normalizar(string? valor) => string.IsNullOrWhiteSpace(valor) ? null : valor.Trim();

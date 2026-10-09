@@ -59,7 +59,8 @@ public sealed class PlanesEstudioController : ControllerBase
     public async Task<ActionResult> ReemplazarElementos(string conexion, int cod, [FromBody] List<PlanElementoRequest> items)
     {
         var antes = await _manager.Obtener(conexion, cod); if (antes is null) return Respuesta.NotFound("El plan de estudios no existe.");
-        try { await _manager.ReemplazarElementos(conexion, cod, items); }
+        try { 
+            await _manager.ReemplazarElementos(conexion, cod, items); }
         catch (InvalidOperationException ex) { return Respuesta.Failed<object>(mensaje: ex.Message); }
         var despues = await _manager.Obtener(conexion, cod); await _audit.Registrar(conexion, "aca_plan_elementos", cod.ToString(), "REEMPLAZAR", antes.elementos, despues?.elementos);
         return Respuesta.Success(despues, "Malla del plan actualizada correctamente.");

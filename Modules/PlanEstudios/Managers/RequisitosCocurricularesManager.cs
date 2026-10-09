@@ -27,9 +27,9 @@ public sealed class RequisitosCocurricularesManager
         var id = await DatabaseConnection.Insert(conexion, "aca_requisitos_cocurriculares", Param(r)); return checked((int)id);
     }
     public async Task<bool> Actualizar(string conexion, int cod, RequisitoCocurricularRequest r)
-        => await DatabaseConnection.Execute(conexion, "UPDATE aca_requisitos_cocurriculares SET codigo=@codigo,nombre=@nombre,descripcion=@descripcion,cod_tipo_requisito=@cod_tipo_requisito,cod_comportamiento=@cod_comportamiento,cantidad=@cantidad,cod_unidad_medida=@cod_unidad_medida,cod_estado=@cod_estado,updatedday=NOW() WHERE cod=@cod;", new { cod, codigo = r.codigo.Trim().ToUpperInvariant(), nombre = r.nombre.Trim(), descripcion = Limpio(r.descripcion), r.cod_tipo_requisito, r.cod_comportamiento, r.cantidad, r.cod_unidad_medida, r.cod_estado }) > 0;
+        => await DatabaseConnection.Update(conexion, "aca_requisitos_cocurriculares", new { cod, codigo = r.codigo.Trim().ToUpperInvariant(), nombre = r.nombre.Trim(), descripcion = Limpio(r.descripcion), r.cod_tipo_requisito, r.cod_comportamiento, r.cantidad, r.cod_unidad_medida, r.cod_estado, updatedday = DbHelpers.GetFechaActualDatetime(conexion) });
     public async Task<bool> CambiarEstado(string conexion, int cod, int estado)
-        => await DatabaseConnection.Execute(conexion, "UPDATE aca_requisitos_cocurriculares SET cod_estado=@estado,updatedday=NOW() WHERE cod=@cod;", new { cod, estado }) > 0 || await Obtener(conexion, cod) is not null;
+        => await DatabaseConnection.Update(conexion, "aca_requisitos_cocurriculares", new { cod, cod_estado = estado, updatedday = DbHelpers.GetFechaActualDatetime(conexion) }) || await Obtener(conexion, cod) is not null;
 
     public async Task ReemplazarMecanismos(string conexion, int requisito, IReadOnlyCollection<MecanismoRequisitoRequest> items)
     {
@@ -51,14 +51,14 @@ public sealed class RequisitosCocurricularesManager
             var existente = existentes.FirstOrDefault(x => x.cod_tipo_mecanismo == i.cod_tipo_mecanismo);
             long cod;
             if (existente is null)
-                cod = await DatabaseConnection.ExecuteScalarTransaccion<long>(tx, "INSERT INTO aca_requisito_mecanismos(cod_requisito,cod_tipo_mecanismo,nombre,descripcion,obligatorio,cod_estado) VALUES(@requisito,@tipo,@nombre,@descripcion,@obligatorio,@estado); SELECT LAST_INSERT_ID();", new { requisito, tipo = i.cod_tipo_mecanismo, nombre = Limpio(i.nombre), descripcion = Limpio(i.descripcion), i.obligatorio, estado = i.cod_estado });
+                cod = await DatabaseConnection.InsertTransaccion(tx, "aca_requisito_mecanismos", new { cod_requisito = requisito, cod_tipo_mecanismo = i.cod_tipo_mecanismo, nombre = Limpio(i.nombre), descripcion = Limpio(i.descripcion), i.obligatorio, cod_estado = i.cod_estado });
             else
             {
                 cod = existente.cod;
-                await DatabaseConnection.ExecuteTransaccion(tx, "UPDATE aca_requisito_mecanismos SET nombre=@nombre,descripcion=@descripcion,obligatorio=@obligatorio,cod_estado=@estado WHERE cod=@cod;", new { cod, nombre = Limpio(i.nombre), descripcion = Limpio(i.descripcion), i.obligatorio, estado = i.cod_estado });
-                await DatabaseConnection.ExecuteTransaccion(tx, "DELETE FROM aca_requisito_mecanismo_rutas WHERE cod_requisito_mecanismo=@cod;", new { cod });
+                await DatabaseConnection.UpdateTransaccion(tx, "aca_requisito_mecanismos", new { cod, nombre = Limpio(i.nombre), descripcion = Limpio(i.descripcion), i.obligatorio, cod_estado = i.cod_estado });
+                await DatabaseConnection.DeleteTransaccion(tx, "aca_requisito_mecanismo_rutas", new { cod_requisito_mecanismo = cod });
             }
-            foreach (var ruta in i.rutas.Distinct()) await DatabaseConnection.ExecuteTransaccion(tx, "INSERT INTO aca_requisito_mecanismo_rutas(cod_requisito_mecanismo,cod_ruta_idioma) VALUES(@mecanismo,@ruta);", new { mecanismo = cod, ruta });
+            foreach (var ruta in i.rutas.Distinct()) await DatabaseConnection.InsertTransaccion(tx, "aca_requisito_mecanismo_rutas", new { cod_requisito_mecanismo = cod, cod_ruta_idioma = ruta });
         }
         var omitidos = existentes.Where(x => !tipos.Contains(x.cod_tipo_mecanismo)).ToArray();
         foreach (var omitido in omitidos)
@@ -68,12 +68,12 @@ public sealed class RequisitosCocurricularesManager
             {
                 var inactivo = await DatabaseConnection.ExecuteScalarTransaccion<int?>(tx, "SELECT cod FROM aca_estados_configuracion WHERE codigo='INACTIVO' AND activo=1 LIMIT 1;");
                 if (!inactivo.HasValue) throw new InvalidOperationException("No se puede retirar un mecanismo con evidencias porque falta el estado INACTIVO.");
-                await DatabaseConnection.ExecuteTransaccion(tx, "UPDATE aca_requisito_mecanismos SET cod_estado=@estado WHERE cod=@cod;", new { estado = inactivo.Value, cod = omitido.cod });
+                await DatabaseConnection.UpdateTransaccion(tx, "aca_requisito_mecanismos", new { cod = omitido.cod, cod_estado = inactivo.Value });
             }
             else
             {
-                await DatabaseConnection.ExecuteTransaccion(tx, "DELETE FROM aca_requisito_mecanismo_rutas WHERE cod_requisito_mecanismo=@cod;", new { cod = omitido.cod });
-                await DatabaseConnection.ExecuteTransaccion(tx, "DELETE FROM aca_requisito_mecanismos WHERE cod=@cod;", new { cod = omitido.cod });
+                await DatabaseConnection.DeleteTransaccion(tx, "aca_requisito_mecanismo_rutas", new { cod_requisito_mecanismo = omitido.cod });
+                await DatabaseConnection.DeleteTransaccion(tx, "aca_requisito_mecanismos", new { cod = omitido.cod });
             }
         }
         tx.Commit();
@@ -94,14 +94,14 @@ public sealed class RequisitosCocurricularesManager
             if (item.rutas.Count > 0 && await DatabaseConnection.ExecuteScalarTransaccion<int>(tx, "SELECT COUNT(*) FROM aca_rutas_idioma WHERE cod IN @ids AND cod_idioma=@idioma AND cod_estado IN (SELECT cod FROM aca_estados_configuracion WHERE codigo='ACTIVO');", new { ids = item.rutas, idioma = item.cod_idioma }) != item.rutas.Distinct().Count()) throw new InvalidOperationException("Una ruta no pertenece al idioma seleccionado o está inactiva.");
             if (item.certificaciones.Count > 0 && await DatabaseConnection.ExecuteScalarTransaccion<int>(tx, "SELECT COUNT(*) FROM aca_certificaciones_idioma WHERE cod IN @ids AND cod_idioma=@idioma AND cod_estado IN (SELECT cod FROM aca_estados_configuracion WHERE codigo='ACTIVO');", new { ids = item.certificaciones, idioma = item.cod_idioma }) != item.certificaciones.Distinct().Count()) throw new InvalidOperationException("Una certificación no pertenece al idioma seleccionado o está inactiva.");
         }
-        await DatabaseConnection.ExecuteTransaccion(tx, "DELETE FROM aca_requisito_idioma_rutas WHERE cod_requisito_idioma IN (SELECT cod FROM aca_requisito_idiomas WHERE cod_requisito=@requisito);", new { requisito });
-        await DatabaseConnection.ExecuteTransaccion(tx, "DELETE FROM aca_requisito_idioma_certificaciones WHERE cod_requisito_idioma IN (SELECT cod FROM aca_requisito_idiomas WHERE cod_requisito=@requisito);", new { requisito });
-        await DatabaseConnection.ExecuteTransaccion(tx, "DELETE FROM aca_requisito_idiomas WHERE cod_requisito=@requisito;", new { requisito });
+        await DatabaseConnection.DeleteTransaccion(tx, "aca_requisito_idioma_rutas", new { requisito }, "cod_requisito_idioma IN (SELECT cod FROM aca_requisito_idiomas WHERE cod_requisito=@requisito)");
+        await DatabaseConnection.DeleteTransaccion(tx, "aca_requisito_idioma_certificaciones", new { requisito }, "cod_requisito_idioma IN (SELECT cod FROM aca_requisito_idiomas WHERE cod_requisito=@requisito)");
+        await DatabaseConnection.DeleteTransaccion(tx, "aca_requisito_idiomas", new { cod_requisito = requisito });
         foreach (var item in items)
         {
-            var cod = await DatabaseConnection.ExecuteScalarTransaccion<long>(tx, "INSERT INTO aca_requisito_idiomas(cod_requisito,cod_idioma,cod_nivel_minimo) VALUES(@requisito,@idioma,@nivel); SELECT LAST_INSERT_ID();", new { requisito, idioma = item.cod_idioma, nivel = item.cod_nivel_minimo });
-            foreach (var ruta in item.rutas.Distinct()) await DatabaseConnection.ExecuteTransaccion(tx, "INSERT INTO aca_requisito_idioma_rutas(cod_requisito_idioma,cod_ruta_idioma) VALUES(@cod,@ruta);", new { cod, ruta });
-            foreach (var cert in item.certificaciones.Distinct()) await DatabaseConnection.ExecuteTransaccion(tx, "INSERT INTO aca_requisito_idioma_certificaciones(cod_requisito_idioma,cod_certificacion) VALUES(@cod,@cert);", new { cod, cert });
+            var cod = await DatabaseConnection.InsertTransaccion(tx, "aca_requisito_idiomas", new { cod_requisito = requisito, cod_idioma = item.cod_idioma, cod_nivel_minimo = item.cod_nivel_minimo });
+            foreach (var ruta in item.rutas.Distinct()) await DatabaseConnection.InsertTransaccion(tx, "aca_requisito_idioma_rutas", new { cod_requisito_idioma = cod, cod_ruta_idioma = ruta });
+            foreach (var cert in item.certificaciones.Distinct()) await DatabaseConnection.InsertTransaccion(tx, "aca_requisito_idioma_certificaciones", new { cod_requisito_idioma = cod, cod_certificacion = cert });
         }
         tx.Commit();
     }
@@ -114,8 +114,8 @@ public sealed class RequisitosCocurricularesManager
         await using var tx = DatabaseConnection.BeginTransaction(conexion);
         if (actividades.Count > 0 && (await DatabaseConnection.GetManyTransaccion<int>(tx, "SELECT cod FROM aca_actividades_cocurriculares WHERE cod IN @ids AND cod_estado IN (SELECT cod FROM aca_estados_configuracion WHERE codigo='ACTIVO');", new { ids = actividades })).Count != actividades.Count)
             throw new InvalidOperationException("Una actividad indicada no existe.");
-        await DatabaseConnection.ExecuteTransaccion(tx, "DELETE FROM aca_requisito_actividades WHERE cod_requisito=@requisito;", new { requisito });
-        foreach (var actividad in actividades) await DatabaseConnection.ExecuteTransaccion(tx, "INSERT INTO aca_requisito_actividades(cod_requisito,cod_actividad) VALUES(@requisito,@actividad);", new { requisito, actividad });
+        await DatabaseConnection.DeleteTransaccion(tx, "aca_requisito_actividades", new { cod_requisito = requisito });
+        foreach (var actividad in actividades) await DatabaseConnection.InsertTransaccion(tx, "aca_requisito_actividades", new { cod_requisito = requisito, cod_actividad = actividad });
         tx.Commit();
     }
 

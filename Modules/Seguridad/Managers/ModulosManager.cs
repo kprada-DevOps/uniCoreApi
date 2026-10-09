@@ -19,8 +19,7 @@ COALESCE(c.habilitado,1) AS habilitado,c.fecha_inicio,c.fecha_fin FROM seg_modul
     public async Task<int> Crear(ModuloRequest r, string conexion)
     {
         await using var tx = DatabaseConnection.BeginTransaction(conexion);
-        await DatabaseConnection.ExecuteTransaccion(tx, "INSERT INTO seg_modulos(codigo,nombre,descripcion,icono,orden,activo) VALUES(@codigo,@nombre,@descripcion,@icono,@orden,@activo);", new { codigo = r.codigo.Trim().ToUpperInvariant(), nombre = r.nombre.Trim(), descripcion = Clean(r.descripcion), icono = Clean(r.icono), r.orden, r.activo });
-        var id = await DatabaseConnection.ExecuteScalarTransaccion<int>(tx, "SELECT LAST_INSERT_ID();");
+        var id = checked((int)await DatabaseConnection.InsertTransaccion(tx, "seg_modulos", new { codigo = r.codigo.Trim().ToUpperInvariant(), nombre = r.nombre.Trim(), descripcion = Clean(r.descripcion), icono = Clean(r.icono), r.orden, r.activo }));
         await DatabaseConnection.ExecuteTransaccion(tx, "INSERT INTO seg_modulos_configuracion(cod_modulo,habilitado,fecha_inicio,fecha_fin) VALUES(@id,@habilitado,@inicio,@fin) ON DUPLICATE KEY UPDATE habilitado=VALUES(habilitado),fecha_inicio=VALUES(fecha_inicio),fecha_fin=VALUES(fecha_fin),updatedday=NOW();", new { id, habilitado = r.habilitado, inicio = r.fecha_inicio, fin = r.fecha_fin });
         tx.Commit(); return id;
     }
@@ -28,14 +27,14 @@ COALESCE(c.habilitado,1) AS habilitado,c.fecha_inicio,c.fecha_fin FROM seg_modul
     {
         await using var tx = DatabaseConnection.BeginTransaction(conexion);
         if (await DatabaseConnection.ExecuteScalarTransaccion<long>(tx, "SELECT COUNT(*) FROM seg_modulos WHERE cod=@cod;", new { cod }) == 0) return false;
-        await DatabaseConnection.ExecuteTransaccion(tx, "UPDATE seg_modulos SET codigo=@codigo,nombre=@nombre,descripcion=@descripcion,icono=@icono,orden=@orden,activo=@activo,updatedday=NOW() WHERE cod=@cod;", new { cod, codigo = r.codigo.Trim().ToUpperInvariant(), nombre = r.nombre.Trim(), descripcion = Clean(r.descripcion), icono = Clean(r.icono), r.orden, r.activo });
+        await DatabaseConnection.UpdateTransaccion(tx, "seg_modulos", new { cod, codigo = r.codigo.Trim().ToUpperInvariant(), nombre = r.nombre.Trim(), descripcion = Clean(r.descripcion), icono = Clean(r.icono), r.orden, r.activo, updatedday = DbHelpers.GetFechaActualDatetime(conexion) });
         await DatabaseConnection.ExecuteTransaccion(tx, "INSERT INTO seg_modulos_configuracion(cod_modulo,habilitado,fecha_inicio,fecha_fin) VALUES(@cod,@habilitado,@inicio,@fin) ON DUPLICATE KEY UPDATE habilitado=VALUES(habilitado),fecha_inicio=VALUES(fecha_inicio),fecha_fin=VALUES(fecha_fin),updatedday=NOW();", new { cod, habilitado = r.habilitado, inicio = r.fecha_inicio, fin = r.fecha_fin });
         tx.Commit(); return true;
     }
     public async Task<bool> Estado(int cod, bool activo, string conexion)
     {
-        var n = await DatabaseConnection.Execute(conexion, "UPDATE seg_modulos SET activo=@activo,updatedday=NOW() WHERE cod=@cod;", new { cod, activo });
-        return n > 0 || await Obtener(cod, conexion) is not null;
+        var n = await DatabaseConnection.Update(conexion, "seg_modulos", new { cod, activo, updatedday = DbHelpers.GetFechaActualDatetime(conexion) });
+        return n || await Obtener(cod, conexion) is not null;
     }
     private static string? Clean(string? value) => string.IsNullOrWhiteSpace(value) ? null : value.Trim();
 }

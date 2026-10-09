@@ -27,9 +27,9 @@ public sealed class ComponentesManager
         var id = await DatabaseConnection.Insert(conexion, "aca_componentes", Param(r)); return checked((int)id);
     }
     public async Task<bool> Actualizar(string conexion, int cod, ComponenteRequest r)
-        => await DatabaseConnection.Execute(conexion, "UPDATE aca_componentes SET codigo=@codigo,nombre=@nombre,descripcion=@descripcion,cod_tipo_componente=@cod_tipo_componente,cod_comportamiento=@cod_comportamiento,creditos=@creditos,cod_estado=@cod_estado,updatedday=NOW() WHERE cod=@cod;", new { cod, codigo = r.codigo.Trim().ToUpperInvariant(), nombre = r.nombre.Trim(), descripcion = Limpio(r.descripcion), r.cod_tipo_componente, r.cod_comportamiento, r.creditos, r.cod_estado }) > 0;
+        => await DatabaseConnection.Update(conexion, "aca_componentes", new { cod, codigo = r.codigo.Trim().ToUpperInvariant(), nombre = r.nombre.Trim(), descripcion = Limpio(r.descripcion), r.cod_tipo_componente, r.cod_comportamiento, r.creditos, r.cod_estado, updatedday = DbHelpers.GetFechaActualDatetime(conexion) });
     public async Task<bool> CambiarEstado(string conexion, int cod, int estado)
-        => await DatabaseConnection.Execute(conexion, "UPDATE aca_componentes SET cod_estado=@estado,updatedday=NOW() WHERE cod=@cod;", new { cod, estado }) > 0 || await Obtener(conexion, cod) is not null;
+        => await DatabaseConnection.Update(conexion, "aca_componentes", new { cod, cod_estado = estado, updatedday = DbHelpers.GetFechaActualDatetime(conexion) }) || await Obtener(conexion, cod) is not null;
     public async Task<bool> ReemplazarOpciones(string conexion, int cod, IReadOnlyCollection<ComponenteOpcionRequest> opciones)
     {
         var ids = opciones.Select(o => o.cod_asignatura).ToArray();
@@ -40,9 +40,9 @@ public sealed class ComponentesManager
         var estados = opciones.Select(o => o.cod_estado).Distinct().ToArray();
         if (estados.Length > 0 && (await DatabaseConnection.GetManyTransaccion<int>(tx, "SELECT cod FROM aca_estados_configuracion WHERE cod IN @ids AND activo=1;", new { ids = estados })).Count != estados.Length)
             throw new InvalidOperationException("Un estado de opción no existe o está inactivo.");
-        await DatabaseConnection.ExecuteTransaccion(tx, "DELETE FROM aca_componente_opciones WHERE cod_componente=@cod;", new { cod });
+        await DatabaseConnection.DeleteTransaccion(tx, "aca_componente_opciones", new { cod_componente = cod });
         foreach (var opcion in opciones)
-            await DatabaseConnection.ExecuteTransaccion(tx, "INSERT INTO aca_componente_opciones(cod_componente,cod_asignatura,orden,cod_estado) VALUES(@cod,@asignatura,@orden,@estado);", new { cod, asignatura = opcion.cod_asignatura, opcion.orden, estado = opcion.cod_estado });
+            await DatabaseConnection.InsertTransaccion(tx, "aca_componente_opciones", new { cod_componente = cod, cod_asignatura = opcion.cod_asignatura, opcion.orden, cod_estado = opcion.cod_estado });
         tx.Commit(); return true;
     }
     private async Task CargarOpciones(string conexion, List<ComponenteDto> componentes)

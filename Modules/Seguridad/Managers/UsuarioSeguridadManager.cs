@@ -145,21 +145,16 @@ WHERE r.cod IN @codigos AND (r.activo = 1 OR ur.cod_usuario IS NOT NULL);";
 
     public async Task<long> CrearUsuario(UsuarioCrearRequest request, string conexion)
     {
-        const string insert = @"
-INSERT INTO seg_usuarios (cod_persona, username, password_hash, activo)
-VALUES (@cod_persona, @username, @password_hash, @activo);";
-
         var roles = request.cod_roles.Distinct().ToArray();
         await using var transaccion = DatabaseConnection.BeginTransaction(conexion);
 
-        await DatabaseConnection.ExecuteTransaccion(transaccion, insert, new
+        var cod = await DatabaseConnection.InsertTransaccion(transaccion, "seg_usuarios", new
         {
             cod_persona = request.cod_persona,
             username = request.username.Trim(),
             password_hash = BCrypt.Net.BCrypt.HashPassword(request.password),
             request.activo,
         });
-        var cod = await DatabaseConnection.ExecuteScalarTransaccion<long>(transaccion, "SELECT LAST_INSERT_ID();");
         await ReemplazarRoles(transaccion, cod, roles);
         transaccion.Commit();
         return cod;
@@ -172,15 +167,7 @@ VALUES (@cod_persona, @username, @password_hash, @activo);";
             "SELECT COUNT(*) FROM seg_usuarios WHERE cod = @cod;", new { cod });
         if (existe == 0) return false;
 
-        const string update = @"
-UPDATE seg_usuarios
-SET cod_persona = @cod_persona,
-    username = @username,
-    activo = @activo,
-    updatedday = @updatedday
-WHERE cod = @cod;";
-
-        await DatabaseConnection.ExecuteTransaccion(transaccion, update, new
+        await DatabaseConnection.UpdateTransaccion(transaccion, "seg_usuarios", new
         {
             cod,
             cod_persona = request.cod_persona,
@@ -196,11 +183,7 @@ WHERE cod = @cod;";
 
     public async Task<bool> EstablecerActivo(long cod, bool activo, string conexion)
     {
-        const string query = @"
-UPDATE seg_usuarios
-SET activo = @activo, updatedday = @updatedday
-WHERE cod = @cod;";
-        await DatabaseConnection.Execute(conexion, query, new { cod, activo, updatedday = DbHelpers.GetFechaActualDatetime(conexion) });
+        await DatabaseConnection.Update(conexion, "seg_usuarios", new { cod, activo, updatedday = DbHelpers.GetFechaActualDatetime(conexion) });
 
         // MySQL puede informar cero filas modificadas si el estado ya tenía ese valor.
         var existe = await DatabaseConnection.ExecuteScalar<long>(conexion, "SELECT COUNT(*) FROM seg_usuarios WHERE cod = @cod;", new { cod });
@@ -209,11 +192,7 @@ WHERE cod = @cod;";
 
     public async Task<bool> CambiarContrasena(long cod, string password, string conexion)
     {
-        const string query = @"
-UPDATE seg_usuarios
-SET password_hash = @password_hash, updatedday = @updatedday
-WHERE cod = @cod;";
-        await DatabaseConnection.Execute(conexion, query, new
+        await DatabaseConnection.Update(conexion, "seg_usuarios", new
         {
             cod,
             password_hash = BCrypt.Net.BCrypt.HashPassword(password),
@@ -224,16 +203,10 @@ WHERE cod = @cod;";
 
     private async Task ReemplazarRoles(DatabaseTransaction transaccion, long codUsuario, IEnumerable<int> codRoles)
     {
-        await DatabaseConnection.ExecuteTransaccion(transaccion,
-            "DELETE FROM seg_usuario_roles WHERE cod_usuario = @cod_usuario;",
-            new { cod_usuario = codUsuario });
-
-        const string insert = @"
-INSERT INTO seg_usuario_roles (cod_usuario, cod_rol)
-VALUES (@cod_usuario, @cod_rol);";
+        await DatabaseConnection.DeleteTransaccion(transaccion, "seg_usuario_roles", new { cod_usuario = codUsuario });
         foreach (var codRol in codRoles)
         {
-            await DatabaseConnection.ExecuteTransaccion(transaccion, insert,
+            await DatabaseConnection.InsertTransaccion(transaccion, "seg_usuario_roles",
                 new { cod_usuario = codUsuario, cod_rol = codRol });
         }
     }

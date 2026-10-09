@@ -27,6 +27,12 @@ public sealed class AsignaturaDto
     public List<PrerrequisitoDto> prerrequisitos { get; set; } = [];
 }
 
+public sealed class AsignaturaSecuencialPreviewDto
+{
+    public string codigo { get; set; } = string.Empty;
+    public string nombre { get; set; } = string.Empty;
+}
+
 public sealed class PrerrequisitoDto
 {
     public int cod_asignatura { get; set; }
