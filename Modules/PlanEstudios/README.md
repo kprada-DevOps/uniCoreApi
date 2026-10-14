@@ -12,7 +12,8 @@ Los requisitos cocurriculares pueden referenciar idiomas, certificaciones y ruta
 
 Todas las rutas incluyen el tenant como primer segmento, por ejemplo `/{conexion}/PlanEstudios/...`.
 
-- `Asignaturas`: consulta y CRUD, estado y gestión de prerrequisitos.
+- `Asignaturas`: consulta y CRUD de asignaturas del catálogo.
+- Los prerrequisitos se configuran por plan de estudio en `aca_plan_asignatura_prerrequisitos`; solo relacionan asignaturas incluidas directamente en ese plan.
 - `Planes`: consulta y CRUD de planes; `/{cod}/Elementos` y `/{cod}/Requisitos` reemplazan cada conjunto de forma transaccional.
 - `Componentes`: CRUD y reemplazo de opciones.
 - `RequisitosCocurriculares`: CRUD y configuración transaccional de mecanismos, referencias a idiomas y actividades.

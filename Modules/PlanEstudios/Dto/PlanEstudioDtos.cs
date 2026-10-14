@@ -24,25 +24,12 @@ public sealed class AsignaturaDto
     public string estado { get; set; } = string.Empty;
     public DateTime createdday { get; set; }
     public DateTime? updatedday { get; set; }
-    public List<PrerrequisitoDto> prerrequisitos { get; set; } = [];
 }
 
 public sealed class AsignaturaSecuencialPreviewDto
 {
     public string codigo { get; set; } = string.Empty;
     public string nombre { get; set; } = string.Empty;
-}
-
-public sealed class PrerrequisitoDto
-{
-    public int cod_asignatura { get; set; }
-    public string codigo_asignatura { get; set; } = string.Empty;
-    public string nombre_asignatura { get; set; } = string.Empty;
-    public int cod_asignatura_requisito { get; set; }
-    public string codigo_requisito { get; set; } = string.Empty;
-    public string nombre_requisito { get; set; } = string.Empty;
-    public int cod_tipo_prerrequisito { get; set; }
-    public string tipo_prerrequisito { get; set; } = string.Empty;
 }
 
 public sealed class PlanEstudioDto
@@ -61,6 +48,20 @@ public sealed class PlanEstudioDto
     public DateTime? updatedday { get; set; }
     public List<PlanElementoDto> elementos { get; set; } = [];
     public List<PlanRequisitoDto> requisitos { get; set; } = [];
+    public List<PlanAsignaturaPrerequisitoDto> prerrequisitos { get; set; } = [];
+}
+
+public sealed class PlanAsignaturaPrerequisitoDto
+{
+    public int cod_plan_estudio { get; set; }
+    public int cod_asignatura { get; set; }
+    public string codigo_asignatura { get; set; } = string.Empty;
+    public string nombre_asignatura { get; set; } = string.Empty;
+    public int cod_asignatura_requisito { get; set; }
+    public string codigo_requisito { get; set; } = string.Empty;
+    public string nombre_requisito { get; set; } = string.Empty;
+    public int cod_tipo_prerrequisito { get; set; }
+    public string tipo_prerrequisito { get; set; } = string.Empty;
 }
 
 public sealed class PlanElementoDto

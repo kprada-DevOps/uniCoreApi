@@ -45,21 +45,6 @@ public sealed class CrearAsignaturasMasivasRequest
     public List<AsignaturaRequest> asignaturas { get; set; } = [];
 }
 
-public sealed class PrerrequisitoRequest
-{
-    [Range(1, int.MaxValue)] public int cod_asignatura_requisito { get; set; }
-    [Range(1, int.MaxValue)] public int cod_tipo_prerrequisito { get; set; }
-}
-
-public sealed class PrerrequisitosMultiplesRequest
-{
-    [Required, MinLength(1), MaxLength(50)]
-    public List<int> cod_asignaturas_requisito { get; set; } = [];
-
-    [Range(1, int.MaxValue)]
-    public int cod_tipo_prerrequisito { get; set; }
-}
-
 public sealed class PlanEstudioRequest
 {
     [Range(1, int.MaxValue)] public int cod_programa { get; set; }
@@ -80,6 +65,13 @@ public sealed class PlanElementoRequest
     public decimal creditos { get; set; }
     public int? orden { get; set; }
     [Range(0, 1)] public int cod_estado { get; set; }
+}
+
+public sealed class PlanAsignaturaPrerequisitoRequest
+{
+    [Range(1, int.MaxValue)] public int cod_asignatura { get; set; }
+    [Range(1, int.MaxValue)] public int cod_asignatura_requisito { get; set; }
+    [Range(1, int.MaxValue)] public int cod_tipo_prerrequisito { get; set; }
 }
 
 public sealed class PlanRequisitoRequest

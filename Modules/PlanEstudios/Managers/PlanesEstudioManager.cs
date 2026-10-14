@@ -22,6 +22,7 @@ public sealed class PlanesEstudioManager
             foreach (var elemento in elementos.Where(e => e.cod_componente.HasValue))
                 elemento.opciones = opciones.Where(o => o.cod_componente == elemento.cod_componente).ToList();
         }
+        plan.prerrequisitos = await DatabaseConnection.GetMany<PlanAsignaturaPrerequisitoDto>(conexion, @"SELECT pp.cod_plan_estudio,pp.cod_asignatura,a.codigo AS codigo_asignatura,a.nombre AS nombre_asignatura,pp.cod_asignatura_requisito,r.codigo AS codigo_requisito,r.nombre AS nombre_requisito,pp.cod_tipo_prerrequisito,t.nombre AS tipo_prerrequisito FROM aca_plan_asignatura_prerrequisitos pp JOIN aca_asignaturas a ON a.cod=pp.cod_asignatura JOIN aca_asignaturas r ON r.cod=pp.cod_asignatura_requisito JOIN aca_tipos_prerrequisito t ON t.cod=pp.cod_tipo_prerrequisito WHERE pp.cod_plan_estudio=@cod ORDER BY a.nombre,r.nombre;", new { cod });
         plan.requisitos = await DatabaseConnection.GetMany<PlanRequisitoDto>(conexion, @"SELECT pr.cod,pr.cod_plan_estudio,pr.cod_requisito,r.codigo AS codigo_requisito,r.nombre AS requisito,pr.obligatorio,pr.orden,pr.cod_estado,e.nombre AS estado FROM aca_plan_requisitos pr JOIN aca_requisitos_cocurriculares r ON r.cod=pr.cod_requisito JOIN aca_estados_configuracion e ON e.cod=pr.cod_estado WHERE pr.cod_plan_estudio=@cod ORDER BY pr.orden,r.nombre;", new { cod });
         return plan;
     }
@@ -49,6 +50,8 @@ public sealed class PlanesEstudioManager
         if (assignments.Distinct().Count() != assignments.Length || components.Distinct().Count() != components.Length)
             throw new InvalidOperationException("El plan contiene elementos duplicados.");
         await using var tx = DatabaseConnection.BeginTransaction(conexion);
+        if (await DatabaseConnection.GetOneTransaccion<int>(tx, "SELECT cod FROM aca_planes_estudio WHERE cod=@plan FOR UPDATE;", new { plan }) == 0)
+            throw new InvalidOperationException("El plan de estudios no existe.");
         if (assignments.Length > 0 && (await DatabaseConnection.GetManyTransaccion<int>(tx, "SELECT cod FROM aca_asignaturas WHERE cod IN @ids;", new { ids = assignments })).Count != assignments.Distinct().Count())
             throw new InvalidOperationException("Una asignatura indicada no existe.");
         if (components.Length > 0 && (await DatabaseConnection.GetManyTransaccion<int>(tx, "SELECT cod FROM aca_componentes WHERE cod IN @ids;", new { ids = components })).Count != components.Distinct().Count())
@@ -58,6 +61,59 @@ public sealed class PlanesEstudioManager
         await DatabaseConnection.DeleteTransaccion(tx, "aca_plan_elementos", new { cod_plan_estudio = plan });
         foreach (var item in items)
             await DatabaseConnection.InsertTransaccion(tx, "aca_plan_elementos", new { cod_plan_estudio = plan, item.cod_asignatura, item.cod_componente, item.semestre, item.creditos, item.orden, item.cod_estado });
+        await DatabaseConnection.ExecuteTransaccion(tx, @"DELETE FROM aca_plan_asignatura_prerrequisitos
+            WHERE cod_plan_estudio=@plan AND (
+                cod_asignatura NOT IN (SELECT cod_asignatura FROM aca_plan_elementos WHERE cod_plan_estudio=@plan AND cod_asignatura IS NOT NULL)
+                OR cod_asignatura_requisito NOT IN (SELECT cod_asignatura FROM aca_plan_elementos WHERE cod_plan_estudio=@plan AND cod_asignatura IS NOT NULL)
+            );", new { plan });
+        tx.Commit();
+    }
+
+    public async Task ReemplazarPrerrequisitos(string conexion, int plan, IReadOnlyCollection<PlanAsignaturaPrerequisitoRequest> items)
+    {
+        var claves = items.Select(item => (item.cod_asignatura, item.cod_asignatura_requisito)).ToArray();
+        if (claves.Distinct().Count() != items.Count)
+            throw new InvalidOperationException("El plan contiene relaciones de prerrequisito duplicadas.");
+        if (items.Any(item => item.cod_asignatura == item.cod_asignatura_requisito))
+            throw new InvalidOperationException("Una asignatura no puede ser su propio prerrequisito.");
+
+        await using var tx = DatabaseConnection.BeginTransaction(conexion);
+        if (await DatabaseConnection.GetOneTransaccion<int>(tx, "SELECT cod FROM aca_planes_estudio WHERE cod=@plan FOR UPDATE;", new { plan }) == 0)
+            throw new InvalidOperationException("El plan de estudios no existe.");
+
+        var codigos = items.SelectMany(item => new[] { item.cod_asignatura, item.cod_asignatura_requisito }).Distinct().ToArray();
+        if (codigos.Length > 0)
+        {
+            var incluidos = await DatabaseConnection.GetManyTransaccion<int>(tx, "SELECT DISTINCT cod_asignatura FROM aca_plan_elementos WHERE cod_plan_estudio=@plan AND cod_asignatura IN @codigos;", new { plan, codigos });
+            if (incluidos.Count != codigos.Length)
+                throw new InvalidOperationException("Cada asignatura relacionada debe estar incluida directamente en este plan de estudios.");
+        }
+
+        var tipos = items.Select(item => item.cod_tipo_prerrequisito).Distinct().ToArray();
+        if (tipos.Length > 0 && (await DatabaseConnection.GetManyTransaccion<int>(tx, "SELECT cod FROM aca_tipos_prerrequisito WHERE cod IN @ids AND activo=1;", new { ids = tipos })).Count != tipos.Length)
+            throw new InvalidOperationException("Un tipo de prerrequisito no existe o está inactivo.");
+
+        var grafo = new Dictionary<int, HashSet<int>>();
+        foreach (var item in items)
+        {
+            var pendientes = new Stack<int>();
+            var visitados = new HashSet<int>();
+            pendientes.Push(item.cod_asignatura_requisito);
+            while (pendientes.TryPop(out var actual))
+            {
+                if (actual == item.cod_asignatura)
+                    throw new InvalidOperationException("La relación crearía un ciclo de prerrequisitos en el plan.");
+                if (!visitados.Add(actual) || !grafo.TryGetValue(actual, out var siguientes)) continue;
+                foreach (var siguiente in siguientes) pendientes.Push(siguiente);
+            }
+            if (!grafo.TryGetValue(item.cod_asignatura, out var requisitos))
+                grafo[item.cod_asignatura] = requisitos = [];
+            requisitos.Add(item.cod_asignatura_requisito);
+        }
+
+        await DatabaseConnection.DeleteTransaccion(tx, "aca_plan_asignatura_prerrequisitos", new { cod_plan_estudio = plan });
+        foreach (var item in items)
+            await DatabaseConnection.InsertTransaccion(tx, "aca_plan_asignatura_prerrequisitos", new { cod_plan_estudio = plan, item.cod_asignatura, item.cod_asignatura_requisito, item.cod_tipo_prerrequisito });
         tx.Commit();
     }
 

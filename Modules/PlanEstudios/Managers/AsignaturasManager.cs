@@ -19,31 +19,6 @@ public sealed class AsignaturasManager
                 busqueda,
                 filtro = string.IsNullOrWhiteSpace(busqueda) ? null : $"%{busqueda.Trim()}%",
             });
-        if (asignaturas.Count == 0) return asignaturas;
-
-        var codigos = asignaturas.Select(asignatura => asignatura.cod).ToArray();
-        var prerrequisitos = await DatabaseConnection.GetMany<PrerrequisitoDto>(
-            conexion,
-            """
-            SELECT p.cod_asignatura,a.codigo AS codigo_asignatura,a.nombre AS nombre_asignatura,
-                   p.cod_asignatura_requisito,r.codigo AS codigo_requisito,r.nombre AS nombre_requisito,
-                   p.cod_tipo_prerrequisito,t.nombre AS tipo_prerrequisito
-            FROM aca_asignatura_prerrequisitos p
-            JOIN aca_asignaturas a ON a.cod=p.cod_asignatura
-            JOIN aca_asignaturas r ON r.cod=p.cod_asignatura_requisito
-            JOIN aca_tipos_prerrequisito t ON t.cod=p.cod_tipo_prerrequisito
-            WHERE p.cod_asignatura IN @codigos
-            ORDER BY p.cod_asignatura,r.nombre;
-            """,
-            new { codigos });
-        var porAsignatura = prerrequisitos
-            .GroupBy(prerrequisito => prerrequisito.cod_asignatura)
-            .ToDictionary(grupo => grupo.Key, grupo => grupo.ToList());
-
-        foreach (var asignatura in asignaturas)
-            if (porAsignatura.TryGetValue(asignatura.cod, out var requisitos))
-                asignatura.prerrequisitos = requisitos;
-
         return asignaturas;
     }
     public Task<AsignaturaDto?> Obtener(string conexion, int cod) => DatabaseConnection.GetOne<AsignaturaDto>(conexion, $"{Select} WHERE a.cod=@cod LIMIT 1;", new { cod });
@@ -148,86 +123,6 @@ public sealed class AsignaturasManager
         => await DatabaseConnection.Update(conexion, "aca_asignaturas", new { cod, codigo = r.codigo.Trim().ToUpperInvariant(), nombre = r.nombre.Trim(), descripcion = Limpio(r.descripcion), r.creditos, r.horas_teoricas, r.horas_practicas, r.cod_tipo_asignatura, r.cod_estado, updatedday = DbHelpers.GetFechaActualDatetime(conexion) });
     public async Task<bool> CambiarEstado(string conexion, int cod, int estado)
         => await DatabaseConnection.Update(conexion, "aca_asignaturas", new { cod, cod_estado = estado, updatedday = DbHelpers.GetFechaActualDatetime(conexion) }) || await Obtener(conexion, cod) is not null;
-    public Task<List<PrerrequisitoDto>> Prerrequisitos(string conexion, int asignatura)
-        => DatabaseConnection.GetMany<PrerrequisitoDto>(conexion, @"SELECT p.cod_asignatura,a.codigo AS codigo_asignatura,a.nombre AS nombre_asignatura,p.cod_asignatura_requisito,r.codigo AS codigo_requisito,r.nombre AS nombre_requisito,p.cod_tipo_prerrequisito,t.nombre AS tipo_prerrequisito FROM aca_asignatura_prerrequisitos p JOIN aca_asignaturas a ON a.cod=p.cod_asignatura JOIN aca_asignaturas r ON r.cod=p.cod_asignatura_requisito JOIN aca_tipos_prerrequisito t ON t.cod=p.cod_tipo_prerrequisito WHERE p.cod_asignatura=@asignatura ORDER BY r.nombre;", new { asignatura });
-    public Task<bool> AgregarPrerrequisito(string conexion, int asignatura, PrerrequisitoRequest r)
-        => AgregarPrerrequisitos(
-            conexion,
-            asignatura,
-            [r.cod_asignatura_requisito],
-            r.cod_tipo_prerrequisito);
-
-    public async Task<bool> AgregarPrerrequisitos(
-        string conexion,
-        int asignatura,
-        IReadOnlyCollection<int> requisitos,
-        int tipo)
-    {
-        var codigosRequisito = requisitos.Distinct().Order().ToArray();
-        if (codigosRequisito.Length is < 1 or > 50 || codigosRequisito.Length != requisitos.Count)
-            return false;
-        if (codigosRequisito.Contains(asignatura))
-            throw new InvalidOperationException("Una asignatura no puede ser su propio prerrequisito.");
-
-        await using var tx = DatabaseConnection.BeginTransaction(conexion);
-        var codigos = codigosRequisito.Append(asignatura).Distinct().Order().ToArray();
-        var asignaturas = await DatabaseConnection.GetManyTransaccion<int>(
-            tx,
-            "SELECT cod FROM aca_asignaturas WHERE cod IN @codigos ORDER BY cod FOR UPDATE;",
-            new { codigos });
-        if (asignaturas.Count != codigos.Length) return false;
-        if (!await DatabaseConnection.ExecuteScalarTransaccion<bool>(
-                tx,
-                "SELECT EXISTS(SELECT 1 FROM aca_tipos_prerrequisito WHERE cod=@tipo AND activo=1);",
-                new { tipo }))
-            return false;
-
-        var duplicados = await DatabaseConnection.GetManyTransaccion<int>(
-            tx,
-            "SELECT cod_asignatura_requisito FROM aca_asignatura_prerrequisitos WHERE cod_asignatura=@asignatura AND cod_asignatura_requisito IN @requisitos;",
-            new { asignatura, requisitos = codigosRequisito });
-        if (duplicados.Count > 0) return false;
-
-        var edges = await DatabaseConnection.GetManyTransaccion<PrerequisiteEdge>(tx, "SELECT cod_asignatura,cod_asignatura_requisito FROM aca_asignatura_prerrequisitos;");
-        var graph = edges
-            .GroupBy(x => x.cod_asignatura)
-            .ToDictionary(g => g.Key, g => g.Select(x => x.cod_asignatura_requisito).ToHashSet());
-
-        foreach (var requisito in codigosRequisito)
-        {
-            var pending = new Stack<int>();
-            var visitados = new HashSet<int>();
-            pending.Push(requisito);
-            while (pending.TryPop(out var actual))
-            {
-                if (actual == asignatura)
-                    throw new InvalidOperationException("La relación crearía un ciclo de prerrequisitos.");
-                if (!visitados.Add(actual) || !graph.TryGetValue(actual, out var siguientes))
-                    continue;
-                foreach (var siguiente in siguientes) pending.Push(siguiente);
-            }
-
-            if (!graph.TryGetValue(asignatura, out var prerequisitosExistentes))
-            {
-                prerequisitosExistentes = [];
-                graph[asignatura] = prerequisitosExistentes;
-            }
-            prerequisitosExistentes.Add(requisito);
-        }
-
-        await DatabaseConnection.InsertManyTransaccion(
-            tx,
-            "aca_asignatura_prerrequisitos",
-            codigosRequisito.Select(requisito => new
-            {
-                cod_asignatura = asignatura,
-                cod_asignatura_requisito = requisito,
-                cod_tipo_prerrequisito = tipo,
-            }));
-        tx.Commit();
-        return true;
-    }
-
     public async Task<List<string>?> EliminarSiNoRelacionada(DatabaseTransaction transaccion, int cod)
     {
         var existe = await DatabaseConnection.GetOneTransaccion<int>(
@@ -241,9 +136,8 @@ public sealed class AsignaturasManager
             """
             SELECT relacion, cantidad
             FROM (
-                SELECT 'Prerrequisitos de otras asignaturas' AS relacion, COUNT(*) AS cantidad FROM aca_asignatura_prerrequisitos WHERE cod_asignatura_requisito=@cod
-                UNION ALL SELECT 'Prerrequisitos propios' AS relacion, COUNT(*) AS cantidad FROM aca_asignatura_prerrequisitos WHERE cod_asignatura=@cod
-                UNION ALL SELECT 'Opciones de componentes' AS relacion, COUNT(*) AS cantidad FROM aca_componente_opciones WHERE cod_asignatura=@cod
+                SELECT 'Opciones de componentes' AS relacion, COUNT(*) AS cantidad FROM aca_componente_opciones WHERE cod_asignatura=@cod
+                UNION ALL SELECT 'Prerrequisitos de planes' AS relacion, COUNT(*) AS cantidad FROM aca_plan_asignatura_prerrequisitos WHERE cod_asignatura=@cod OR cod_asignatura_requisito=@cod
                 UNION ALL SELECT 'Grupos académicos' AS relacion, COUNT(*) AS cantidad FROM aca_grupos WHERE cod_asignatura=@cod
                 UNION ALL SELECT 'Historial académico' AS relacion, COUNT(*) AS cantidad FROM aca_historial_academico WHERE cod_asignatura=@cod
                 UNION ALL SELECT 'Homologaciones (origen)' AS relacion, COUNT(*) AS cantidad FROM aca_homologaciones WHERE cod_asignatura_origen=@cod
@@ -262,8 +156,6 @@ public sealed class AsignaturasManager
         await DatabaseConnection.DeleteTransaccion(transaccion, "aca_asignaturas", new { cod });
         return [];
     }
-    public async Task<bool> QuitarPrerrequisito(string conexion, int asignatura, int requisito)
-        => await DatabaseConnection.Delete(conexion, "aca_asignatura_prerrequisitos", new { cod_asignatura = asignatura, cod_asignatura_requisito = requisito });
     private static object Param(AsignaturaRequest r) => new { codigo = r.codigo.Trim().ToUpperInvariant(), nombre = r.nombre.Trim(), descripcion = Limpio(r.descripcion), r.creditos, r.horas_teoricas, r.horas_practicas, r.cod_tipo_asignatura, r.cod_estado };
     private static string? Limpio(string? value) => string.IsNullOrWhiteSpace(value) ? null : value.Trim();
 
@@ -295,6 +187,5 @@ public sealed class AsignaturasManager
         return resultado.ToString();
     }
 
-    private sealed class PrerequisiteEdge { public int cod_asignatura { get; set; } public int cod_asignatura_requisito { get; set; } }
     private sealed class DependenciaAsignatura { public string relacion { get; set; } = string.Empty; public long cantidad { get; set; } }
 }

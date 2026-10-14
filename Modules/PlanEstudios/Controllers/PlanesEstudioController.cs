@@ -65,6 +65,17 @@ public sealed class PlanesEstudioController : ControllerBase
         var despues = await _manager.Obtener(conexion, cod); await _audit.Registrar(conexion, "aca_plan_elementos", cod.ToString(), "REEMPLAZAR", antes.elementos, despues?.elementos);
         return Respuesta.Success(despues, "Malla del plan actualizada correctamente.");
     }
+    [HttpPut("GuardarPrerrequisitosPlan/{cod:int:min(1)}"), Authorize(Policy = "PERMISO:PLAN_ESTUDIOS.ADMINISTRAR")]
+    public async Task<ActionResult> ReemplazarPrerrequisitos(string conexion, int cod, [FromBody] List<PlanAsignaturaPrerequisitoRequest> items)
+    {
+        var antes = await _manager.Obtener(conexion, cod);
+        if (antes is null) return Respuesta.NotFound("El plan de estudios no existe.");
+        try { await _manager.ReemplazarPrerrequisitos(conexion, cod, items); }
+        catch (InvalidOperationException ex) { return Respuesta.Failed<object>(mensaje: ex.Message); }
+        var despues = await _manager.Obtener(conexion, cod);
+        await _audit.Registrar(conexion, "aca_plan_asignatura_prerrequisitos", cod.ToString(), "REEMPLAZAR", antes.prerrequisitos, despues?.prerrequisitos);
+        return Respuesta.Success(despues, "Prerrequisitos del plan actualizados correctamente.");
+    }
     [HttpPut("GuardarRequisitosPlan/{cod:int:min(1)}"), Authorize(Policy = "PERMISO:PLAN_ESTUDIOS.ADMINISTRAR")]
     public async Task<ActionResult> ReemplazarRequisitos(string conexion, int cod, [FromBody] List<PlanRequisitoRequest> items)
     {

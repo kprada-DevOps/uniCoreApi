@@ -27,7 +27,7 @@ public sealed class AsignaturasController : ControllerBase
     public async Task<ActionResult> Obtener(string conexion, int cod)
     {
         var item = await _manager.Obtener(conexion, cod); if (item is null) return Respuesta.NotFound("La asignatura no existe.");
-        item.prerrequisitos = await _manager.Prerrequisitos(conexion, cod); return Respuesta.Success(item);
+        return Respuesta.Success(item);
     }
     [HttpPost("CrearAsignatura"), Authorize(Policy = "PERMISO:PLAN_ESTUDIOS.ADMINISTRAR")]
     public async Task<ActionResult> Crear(string conexion, [FromBody] AsignaturaRequest r)
@@ -131,56 +131,6 @@ public sealed class AsignaturasController : ControllerBase
         await _manager.CambiarEstado(conexion, cod, cod_estado); await _audit.Registrar(conexion, "aca_asignaturas", cod.ToString(), "CAMBIAR_ESTADO", antes, new { cod_estado });
         return Respuesta.Success(await _manager.Obtener(conexion, cod), "Estado actualizado.");
     }
-    [HttpGet("ObtenerPrerrequisitos/{cod:int:min(1)}"), Authorize(Policy = "PERMISO:PLAN_ESTUDIOS.CONSULTAR")]
-    public async Task<ActionResult> Prerrequisitos(string conexion, int cod)
-        => await _manager.Obtener(conexion, cod) is null ? Respuesta.NotFound("La asignatura no existe.") : Respuesta.Success(await _manager.Prerrequisitos(conexion, cod));
-    [HttpPost("AgregarPrerrequisito/{cod:int:min(1)}"), Authorize(Policy = "PERMISO:PLAN_ESTUDIOS.ADMINISTRAR")]
-    public async Task<ActionResult> AgregarPrerrequisito(string conexion, int cod, [FromBody] PrerrequisitoRequest r)
-    {
-        if (await _manager.Obtener(conexion, cod) is null) return Respuesta.NotFound("La asignatura no existe.");
-        bool inserted;
-        try { inserted = await _manager.AgregarPrerrequisito(conexion, cod, r); }
-        catch (InvalidOperationException ex) { return Respuesta.Failed<object>(mensaje: ex.Message); }
-        if (!inserted) return Respuesta.Conflict("La relación ya existe o alguna referencia no es válida.");
-        await _audit.Registrar(conexion, "aca_asignatura_prerrequisitos", $"{cod}:{r.cod_asignatura_requisito}", "CREAR", nuevo: r);
-        return Respuesta.Success(await _manager.Prerrequisitos(conexion, cod), "Prerrequisito agregado.");
-    }
-
-    [HttpPost("AgregarPrerrequisitos/{cod:int:min(1)}"), Authorize(Policy = "PERMISO:PLAN_ESTUDIOS.ADMINISTRAR")]
-    public async Task<ActionResult> AgregarPrerrequisitos(string conexion, int cod, [FromBody] PrerrequisitosMultiplesRequest r)
-    {
-        if (r.cod_asignaturas_requisito.Any(requisito => requisito < 1))
-            return Respuesta.Failed<object>(mensaje: "Los códigos de las asignaturas requeridas deben ser válidos.");
-        if (r.cod_asignaturas_requisito.Distinct().Count() != r.cod_asignaturas_requisito.Count)
-            return Respuesta.Conflict("La selección contiene asignaturas repetidas.");
-
-        bool agregados;
-        try
-        {
-            agregados = await _manager.AgregarPrerrequisitos(
-                conexion,
-                cod,
-                r.cod_asignaturas_requisito,
-                r.cod_tipo_prerrequisito);
-        }
-        catch (InvalidOperationException ex)
-        {
-            return Respuesta.Failed<object>(mensaje: ex.Message);
-        }
-
-        if (!agregados)
-            return Respuesta.Conflict("No se agregaron los prerrequisitos. Verifica que las asignaturas existan, el tipo esté activo y las relaciones no estén registradas.");
-
-        return Respuesta.Success(await _manager.Prerrequisitos(conexion, cod), "Prerrequisitos agregados correctamente.");
-    }
-
-    [HttpDelete("EliminarPrerrequisito/{cod:int:min(1)}/{requisito:int:min(1)}"), Authorize(Policy = "PERMISO:PLAN_ESTUDIOS.ADMINISTRAR")]
-    public async Task<ActionResult> QuitarPrerrequisito(string conexion, int cod, int requisito)
-    {
-        if (!await _manager.QuitarPrerrequisito(conexion, cod, requisito)) return Respuesta.NotFound("La relación de prerrequisito no existe.");
-        await _audit.Registrar(conexion, "aca_asignatura_prerrequisitos", $"{cod}:{requisito}", "ELIMINAR"); return Respuesta.Success(await _manager.Prerrequisitos(conexion, cod), "Prerrequisito eliminado.");
-    }
-
     [HttpDelete("EliminarAsignatura/{cod:int:min(1)}"), Authorize(Policy = "PERMISO:PLAN_ESTUDIOS.ADMINISTRAR")]
     public async Task<ActionResult> EliminarAsignatura(string conexion, int cod)
     {
