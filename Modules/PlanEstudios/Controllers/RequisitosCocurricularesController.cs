@@ -64,7 +64,7 @@ public sealed class RequisitosCocurricularesController : ControllerBase
     {
         var antes = await _manager.Obtener(conexion, cod); if (antes is null) return Respuesta.NotFound("El requisito cocurricular no existe.");
         try { await _manager.ReemplazarIdiomas(conexion, cod, r.items); } catch (InvalidOperationException ex) { return Respuesta.Failed<object>(mensaje: ex.Message); }
-        var despues = await _manager.Obtener(conexion, cod); await _audit.Registrar(conexion, "aca_requisito_idiomas", cod.ToString(), "REEMPLAZAR", antes.idiomas, despues?.idiomas);
+        var despues = await _manager.Obtener(conexion, cod); await _audit.Registrar(conexion, "idi_requisito_idiomas", cod.ToString(), "REEMPLAZAR", antes.idiomas, despues?.idiomas);
         return Respuesta.Success(despues, "Configuración de idiomas actualizada.");
     }
     [HttpPut("GuardarActividadesRequisito/{cod:int:min(1)}"), Authorize(Policy = "PERMISO:PLAN_ESTUDIOS.ADMINISTRAR")]

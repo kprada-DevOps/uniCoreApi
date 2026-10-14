@@ -16,6 +16,7 @@ using UniCore.Api.Modules.Seguridad.Managers;
 using UniCore.Api.Modules.Seguridad.Authorization;
 using UniCore.Api.Modules.EstructuraAcademica.Managers;
 using UniCore.Api.Modules.PlanEstudios.Managers;
+using UniCore.Api.Modules.Idiomas.Managers;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -166,6 +167,7 @@ builder.Services.AddScoped<ProgramaNivelManager>();
 builder.Services.AddScoped<ProgramaModalidadManager>();
 builder.Services.AddScoped<TipoPeriodoManager>();
 builder.Services.AddScoped<PlanEstudiosCatalogosManager>();
+builder.Services.AddScoped<IdiomasManager>();
 builder.Services.AddScoped<CatalogosRelacionadosManager>();
 builder.Services.AddScoped<AsignaturasManager>();
 builder.Services.AddScoped<PlanesEstudioManager>();

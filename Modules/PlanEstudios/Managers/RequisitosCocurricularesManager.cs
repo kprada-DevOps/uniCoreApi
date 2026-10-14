@@ -1,4 +1,5 @@
 using UniCore.Api.Database;
+using UniCore.Api.Modules.Idiomas.Managers;
 using UniCore.Api.Modules.PlanEstudios.Dto;
 using UniCore.Api.Modules.PlanEstudios.Requests;
 
@@ -43,7 +44,7 @@ public sealed class RequisitosCocurricularesManager
         if (estados.Length > 0 && (await DatabaseConnection.GetManyTransaccion<int>(tx, "SELECT cod FROM aca_estados_configuracion WHERE cod IN @ids AND activo=1;", new { ids = estados })).Count != estados.Length)
             throw new InvalidOperationException("Un estado de mecanismo no existe o está inactivo.");
         var rutas = items.SelectMany(x => x.rutas).Distinct().ToArray();
-        if (rutas.Length > 0 && (await DatabaseConnection.GetManyTransaccion<int>(tx, "SELECT cod FROM aca_rutas_idioma WHERE cod IN @ids;", new { ids = rutas })).Count != rutas.Length)
+        if (rutas.Length > 0 && (await DatabaseConnection.GetManyTransaccion<int>(tx, "SELECT cod FROM idi_rutas_idioma WHERE cod IN @ids;", new { ids = rutas })).Count != rutas.Length)
             throw new InvalidOperationException("Una ruta asociada al mecanismo no existe.");
         var existentes = await DatabaseConnection.GetManyTransaccion<MecanismoPersistido>(tx, "SELECT cod,cod_tipo_mecanismo FROM aca_requisito_mecanismos WHERE cod_requisito=@requisito;", new { requisito });
         foreach (var i in items)
@@ -56,9 +57,9 @@ public sealed class RequisitosCocurricularesManager
             {
                 cod = existente.cod;
                 await DatabaseConnection.UpdateTransaccion(tx, "aca_requisito_mecanismos", new { cod, nombre = Limpio(i.nombre), descripcion = Limpio(i.descripcion), i.obligatorio, cod_estado = i.cod_estado });
-                await DatabaseConnection.DeleteTransaccion(tx, "aca_requisito_mecanismo_rutas", new { cod_requisito_mecanismo = cod });
+                await DatabaseConnection.DeleteTransaccion(tx, "idi_requisito_mecanismo_rutas", new { cod_requisito_mecanismo = cod });
             }
-            foreach (var ruta in i.rutas.Distinct()) await DatabaseConnection.InsertTransaccion(tx, "aca_requisito_mecanismo_rutas", new { cod_requisito_mecanismo = cod, cod_ruta_idioma = ruta });
+            foreach (var ruta in i.rutas.Distinct()) await DatabaseConnection.InsertTransaccion(tx, "idi_requisito_mecanismo_rutas", new { cod_requisito_mecanismo = cod, cod_ruta_idioma = ruta });
         }
         var omitidos = existentes.Where(x => !tipos.Contains(x.cod_tipo_mecanismo)).ToArray();
         foreach (var omitido in omitidos)
@@ -72,7 +73,7 @@ public sealed class RequisitosCocurricularesManager
             }
             else
             {
-                await DatabaseConnection.DeleteTransaccion(tx, "aca_requisito_mecanismo_rutas", new { cod_requisito_mecanismo = omitido.cod });
+                await DatabaseConnection.DeleteTransaccion(tx, "idi_requisito_mecanismo_rutas", new { cod_requisito_mecanismo = omitido.cod });
                 await DatabaseConnection.DeleteTransaccion(tx, "aca_requisito_mecanismos", new { cod = omitido.cod });
             }
         }
@@ -88,20 +89,20 @@ public sealed class RequisitosCocurricularesManager
         await using var tx = DatabaseConnection.BeginTransaction(conexion);
         foreach (var item in items)
         {
-            var ok = await DatabaseConnection.ExecuteScalarTransaccion<bool>(tx, @"SELECT EXISTS(SELECT 1 FROM aca_idiomas i JOIN aca_niveles_idioma n ON n.cod=@nivel AND n.cod_estado IN (SELECT cod FROM aca_estados_configuracion WHERE codigo='ACTIVO') WHERE i.cod=@idioma AND i.cod_estado IN (SELECT cod FROM aca_estados_configuracion WHERE codigo='ACTIVO'));", new { idioma = item.cod_idioma, nivel = item.cod_nivel_minimo });
+            var ok = await DatabaseConnection.ExecuteScalarTransaccion<bool>(tx, @"SELECT EXISTS(SELECT 1 FROM idi_idiomas i JOIN idi_niveles_idioma n ON n.cod=@nivel AND n.cod_estado IN (SELECT cod FROM aca_estados_configuracion WHERE codigo='ACTIVO') WHERE i.cod=@idioma AND i.cod_estado IN (SELECT cod FROM aca_estados_configuracion WHERE codigo='ACTIVO'));", new { idioma = item.cod_idioma, nivel = item.cod_nivel_minimo });
             if (!ok) throw new InvalidOperationException("El idioma o nivel mínimo no existe o está inactivo.");
             if (item.rutas.Distinct().Count() != item.rutas.Count || item.certificaciones.Distinct().Count() != item.certificaciones.Count) throw new InvalidOperationException("Hay rutas o certificaciones duplicadas.");
-            if (item.rutas.Count > 0 && await DatabaseConnection.ExecuteScalarTransaccion<int>(tx, "SELECT COUNT(*) FROM aca_rutas_idioma WHERE cod IN @ids AND cod_idioma=@idioma AND cod_estado IN (SELECT cod FROM aca_estados_configuracion WHERE codigo='ACTIVO');", new { ids = item.rutas, idioma = item.cod_idioma }) != item.rutas.Distinct().Count()) throw new InvalidOperationException("Una ruta no pertenece al idioma seleccionado o está inactiva.");
-            if (item.certificaciones.Count > 0 && await DatabaseConnection.ExecuteScalarTransaccion<int>(tx, "SELECT COUNT(*) FROM aca_certificaciones_idioma WHERE cod IN @ids AND cod_idioma=@idioma AND cod_estado IN (SELECT cod FROM aca_estados_configuracion WHERE codigo='ACTIVO');", new { ids = item.certificaciones, idioma = item.cod_idioma }) != item.certificaciones.Distinct().Count()) throw new InvalidOperationException("Una certificación no pertenece al idioma seleccionado o está inactiva.");
+            if (item.rutas.Count > 0 && await DatabaseConnection.ExecuteScalarTransaccion<int>(tx, "SELECT COUNT(*) FROM idi_rutas_idioma WHERE cod IN @ids AND cod_idioma=@idioma AND cod_estado IN (SELECT cod FROM aca_estados_configuracion WHERE codigo='ACTIVO');", new { ids = item.rutas, idioma = item.cod_idioma }) != item.rutas.Distinct().Count()) throw new InvalidOperationException("Una ruta no pertenece al idioma seleccionado o está inactiva.");
+            if (item.certificaciones.Count > 0 && await DatabaseConnection.ExecuteScalarTransaccion<int>(tx, "SELECT COUNT(*) FROM idi_certificaciones_idioma WHERE cod IN @ids AND cod_idioma=@idioma AND cod_estado IN (SELECT cod FROM aca_estados_configuracion WHERE codigo='ACTIVO');", new { ids = item.certificaciones, idioma = item.cod_idioma }) != item.certificaciones.Distinct().Count()) throw new InvalidOperationException("Una certificación no pertenece al idioma seleccionado o está inactiva.");
         }
-        await DatabaseConnection.DeleteTransaccion(tx, "aca_requisito_idioma_rutas", new { requisito }, "cod_requisito_idioma IN (SELECT cod FROM aca_requisito_idiomas WHERE cod_requisito=@requisito)");
-        await DatabaseConnection.DeleteTransaccion(tx, "aca_requisito_idioma_certificaciones", new { requisito }, "cod_requisito_idioma IN (SELECT cod FROM aca_requisito_idiomas WHERE cod_requisito=@requisito)");
-        await DatabaseConnection.DeleteTransaccion(tx, "aca_requisito_idiomas", new { cod_requisito = requisito });
+        await DatabaseConnection.DeleteTransaccion(tx, "idi_requisito_idioma_rutas", new { requisito }, "cod_requisito_idioma IN (SELECT cod FROM idi_requisito_idiomas WHERE cod_requisito=@requisito)");
+        await DatabaseConnection.DeleteTransaccion(tx, "idi_requisito_idioma_certificaciones", new { requisito }, "cod_requisito_idioma IN (SELECT cod FROM idi_requisito_idiomas WHERE cod_requisito=@requisito)");
+        await DatabaseConnection.DeleteTransaccion(tx, "idi_requisito_idiomas", new { cod_requisito = requisito });
         foreach (var item in items)
         {
-            var cod = await DatabaseConnection.InsertTransaccion(tx, "aca_requisito_idiomas", new { cod_requisito = requisito, cod_idioma = item.cod_idioma, cod_nivel_minimo = item.cod_nivel_minimo });
-            foreach (var ruta in item.rutas.Distinct()) await DatabaseConnection.InsertTransaccion(tx, "aca_requisito_idioma_rutas", new { cod_requisito_idioma = cod, cod_ruta_idioma = ruta });
-            foreach (var cert in item.certificaciones.Distinct()) await DatabaseConnection.InsertTransaccion(tx, "aca_requisito_idioma_certificaciones", new { cod_requisito_idioma = cod, cod_certificacion = cert });
+            var cod = await DatabaseConnection.InsertTransaccion(tx, "idi_requisito_idiomas", new { cod_requisito = requisito, cod_idioma = item.cod_idioma, cod_nivel_minimo = item.cod_nivel_minimo });
+            foreach (var ruta in item.rutas.Distinct()) await DatabaseConnection.InsertTransaccion(tx, "idi_requisito_idioma_rutas", new { cod_requisito_idioma = cod, cod_ruta_idioma = ruta });
+            foreach (var cert in item.certificaciones.Distinct()) await DatabaseConnection.InsertTransaccion(tx, "idi_requisito_idioma_certificaciones", new { cod_requisito_idioma = cod, cod_certificacion = cert });
         }
         tx.Commit();
     }
@@ -123,14 +124,16 @@ public sealed class RequisitosCocurricularesManager
     {
         var ids = rows.Select(r => r.cod).ToArray(); if (ids.Length == 0) return;
         var mecanismos = await DatabaseConnection.GetMany<RequisitoMecanismoDto>(conexion, @"SELECT m.cod,m.cod_requisito,m.cod_tipo_mecanismo,t.nombre AS tipo_mecanismo,m.nombre,m.descripcion,m.obligatorio,m.cod_estado FROM aca_requisito_mecanismos m JOIN aca_tipos_mecanismo_cumplimiento t ON t.cod=m.cod_tipo_mecanismo WHERE m.cod_requisito IN @ids ORDER BY m.cod_requisito,m.cod;", new { ids });
-        var idiomas = await DatabaseConnection.GetMany<RequisitoIdiomaDto>(conexion, @"SELECT ri.cod,ri.cod_requisito,ri.cod_idioma,i.nombre AS idioma,ri.cod_nivel_minimo,n.nombre AS nivel_minimo FROM aca_requisito_idiomas ri JOIN aca_idiomas i ON i.cod=ri.cod_idioma JOIN aca_niveles_idioma n ON n.cod=ri.cod_nivel_minimo WHERE ri.cod_requisito IN @ids ORDER BY ri.cod_requisito,i.nombre;", new { ids });
+        var formatoNivel = (await new IdiomasManager().FormatoNivel(conexion)).formato_nivel;
+        var idiomas = await DatabaseConnection.GetMany<RequisitoIdiomaDto>(conexion, @"SELECT ri.cod,ri.cod_requisito,ri.cod_idioma,i.nombre AS idioma,ri.cod_nivel_minimo,n.orden AS orden_nivel_minimo FROM idi_requisito_idiomas ri JOIN idi_idiomas i ON i.cod=ri.cod_idioma JOIN idi_niveles_idioma n ON n.cod=ri.cod_nivel_minimo WHERE ri.cod_requisito IN @ids ORDER BY ri.cod_requisito,i.nombre;", new { ids });
+        foreach (var idioma in idiomas) idioma.nivel_minimo = IdiomasManager.NombreNivel(idioma.orden_nivel_minimo, formatoNivel);
         var actividades = await DatabaseConnection.GetMany<RequisitoActividadDto>(conexion, @"SELECT ra.cod_requisito,ac.cod AS cod_actividad,ac.codigo,ac.nombre,ac.cod_tipo_actividad FROM aca_requisito_actividades ra JOIN aca_actividades_cocurriculares ac ON ac.cod=ra.cod_actividad WHERE ra.cod_requisito IN @ids ORDER BY ra.cod_requisito,ac.nombre;", new { ids });
         var riIds = idiomas.Select(i => i.cod).ToArray();
         var mecanismoIds = mecanismos.Select(m => m.cod).ToArray();
-        var mecanismoRutas = mecanismoIds.Length == 0 ? [] : await DatabaseConnection.GetMany<RequisitoMecanismoRutaFila>(conexion, "SELECT cod_requisito_mecanismo,cod_ruta_idioma FROM aca_requisito_mecanismo_rutas WHERE cod_requisito_mecanismo IN @ids;", new { ids = mecanismoIds });
+        var mecanismoRutas = mecanismoIds.Length == 0 ? [] : await DatabaseConnection.GetMany<RequisitoMecanismoRutaFila>(conexion, "SELECT cod_requisito_mecanismo,cod_ruta_idioma FROM idi_requisito_mecanismo_rutas WHERE cod_requisito_mecanismo IN @ids;", new { ids = mecanismoIds });
         foreach (var mecanismo in mecanismos) mecanismo.rutas = mecanismoRutas.Where(x => x.cod_requisito_mecanismo == mecanismo.cod).Select(x => x.cod_ruta_idioma).ToList();
-        var rutas = riIds.Length == 0 ? [] : await DatabaseConnection.GetMany<RequisitoIdiomaRutaFila>(conexion, "SELECT cod_requisito_idioma,cod_ruta_idioma FROM aca_requisito_idioma_rutas WHERE cod_requisito_idioma IN @ids;", new { ids = riIds });
-        var certificaciones = riIds.Length == 0 ? [] : await DatabaseConnection.GetMany<RequisitoIdiomaCertificacionFila>(conexion, "SELECT cod_requisito_idioma,cod_certificacion FROM aca_requisito_idioma_certificaciones WHERE cod_requisito_idioma IN @ids;", new { ids = riIds });
+        var rutas = riIds.Length == 0 ? [] : await DatabaseConnection.GetMany<RequisitoIdiomaRutaFila>(conexion, "SELECT cod_requisito_idioma,cod_ruta_idioma FROM idi_requisito_idioma_rutas WHERE cod_requisito_idioma IN @ids;", new { ids = riIds });
+        var certificaciones = riIds.Length == 0 ? [] : await DatabaseConnection.GetMany<RequisitoIdiomaCertificacionFila>(conexion, "SELECT cod_requisito_idioma,cod_certificacion FROM idi_requisito_idioma_certificaciones WHERE cod_requisito_idioma IN @ids;", new { ids = riIds });
         foreach (var idioma in idiomas)
         {
             idioma.rutas = rutas.Where(x => x.cod_requisito_idioma == idioma.cod).Select(x => x.cod_ruta_idioma).ToList();

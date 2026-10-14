@@ -250,7 +250,6 @@ public sealed class AsignaturasManager
                 UNION ALL SELECT 'Homologaciones (destino)' AS relacion, COUNT(*) AS cantidad FROM aca_homologaciones WHERE cod_asignatura_destino=@cod
                 UNION ALL SELECT 'Asignaciones a planes' AS relacion, COUNT(*) AS cantidad FROM aca_plan_asignaturas WHERE cod_asignatura=@cod
                 UNION ALL SELECT 'Elementos de planes de estudio' AS relacion, COUNT(*) AS cantidad FROM aca_plan_elementos WHERE cod_asignatura=@cod
-                UNION ALL SELECT 'Rutas de idioma' AS relacion, COUNT(*) AS cantidad FROM aca_ruta_idioma_asignaturas WHERE cod_asignatura=@cod
                 UNION ALL SELECT 'Recuperaciones' AS relacion, COUNT(*) AS cantidad FROM eva_recuperaciones WHERE cod_asignatura=@cod
             ) AS referencias
             WHERE cantidad > 0;
